@@ -8,6 +8,7 @@ use std::error::Error;
 use hyper::{client::Client, Uri};
 use serde_json;
 use serde::Deserialize;
+use chrono::Utc;
 
 
 #[derive(Deserialize)]
@@ -59,6 +60,7 @@ pub fn verify(
     pcrs: Vec<String>,
     min_cpus: usize,
     min_mem: usize,
+    max_age: usize,
 ) -> Result<Vec<u8>, Box<dyn Error>> {
     // parse attestation doc
     let cosesign1 = CoseSign1::from_bytes(&attestation_doc_cbor)?;
@@ -108,13 +110,24 @@ pub fn verify(
     let user_data = attestation_doc
         .remove(&"user_data".to_owned().into())
         .ok_or("user data not found in attestation doc".to_owned())?;
-    let user_data = (match user_data { Value::Bytes(b) => Ok(b), _ => Err("public key decode failure") })?;
+    let user_data = (match user_data { Value::Bytes(b) => Ok(b), _ => Err("user data decode failure") })?;
     let size = serde_json::from_slice::<EnclaveConfig>(user_data.as_slice())?;
     if size.total_cpus < min_cpus {
         return Err("enclave does not meet minimum cpus requirement".into());
     }
     if size.total_memory < min_mem {
         return Err("enclave does not meet minimum memory requirement".into());
+    }
+
+    // verify age
+    let timestamp = attestation_doc
+        .remove(&"timestamp".to_owned().into())
+        .ok_or("timestamp not found in attestation doc".to_owned())?;
+    let timestamp = (match timestamp { Value::Integer(b) => Ok(b), _ => Err("timestamp decode failure") })?;
+    let now = Utc::now().timestamp_millis();
+    println!("{}, {}, {}", (now as i128), (max_age as i128), timestamp);
+    if (now as i128) - (max_age as i128) > timestamp {
+        return Err("attestation is too old".into());
     }
 
     // return the enclave key
