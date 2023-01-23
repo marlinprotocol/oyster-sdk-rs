@@ -1,0 +1,32 @@
+[package]
+name = "oyster-sdk"
+version = "0.1.0"
+edition = "2021"
+description = "Oyster SDK"
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+clap = { version = "4.0.26", features = ["derive"] }
+aws-nitro-enclaves-cose = "0.5.0"
+hyper = { version = "0.14.23", features = ["client", "http1", "http2", "tcp"] }
+serde_cbor = "0.11.2"
+openssl = "0.10.43"
+hex = "0.4.3"
+serde_json = "1.0"
+serde = "1.0.152"
+
+[lib]
+name = "oyster"
+
+[[bin]]
+name = "verifier"
+path = "src/main.rs"
+
+[profile.release]
+strip = true
+lto = true
+panic = "abort"
+
