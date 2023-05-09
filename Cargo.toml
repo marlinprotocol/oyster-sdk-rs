@@ -26,6 +26,10 @@ name = "oyster"
 name = "verifier"
 path = "src/main.rs"
 
+[[example]]
+name = "hyper"
+path = "examples/hyper.rs"
+
 [profile.release]
 strip = true
 lto = true
