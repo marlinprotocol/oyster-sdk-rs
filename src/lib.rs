@@ -61,7 +61,7 @@ pub fn verify(
     min_cpus: usize,
     min_mem: usize,
     max_age: usize,
-) -> Result<Vec<u8>, Box<dyn Error>> {
+) -> Result<[u8; 32], Box<dyn Error>> {
     // parse attestation doc
     let cosesign1 = CoseSign1::from_bytes(&attestation_doc_cbor)?;
     let payload = cosesign1.get_payload::<Openssl>(None)?;
@@ -136,7 +136,7 @@ pub fn verify(
         .ok_or("public key not found in attestation doc".to_owned())?;
     let public_key = (match public_key { Value::Bytes(b) => Ok(b), _ => Err("public key decode failure") })?;
 
-    Ok(public_key)
+    Ok(public_key[0..32].try_into()?)
 }
 
 pub async fn get_attestation_doc(endpoint: Uri) -> Result<Vec<u8>, Box<dyn Error>> {
