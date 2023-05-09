@@ -11,13 +11,17 @@ license = "MIT"
 tokio = { version = "1", features = ["full"] }
 clap = { version = "4.0.26", features = ["derive"] }
 aws-nitro-enclaves-cose = "0.5.0"
-hyper = { version = "0.14.23", features = ["client", "http1", "http2", "tcp"] }
+hyper = { version = "0.14.23", features = ["client", "http1", "http2", "tcp", "server"] }
 serde_cbor = "0.11.2"
 openssl = "0.10.43"
 hex = "0.4.3"
 serde_json = "1.0"
 serde = "1.0.152"
 chrono = "0.4.23"
+libsodium-sys-stable = { version = "1.19.27", features = ["fetch-latest"] }
+thiserror = "1.0.40"
+http = "0.2.9"
+tower = { version = "0.4.13", features = ["full"] }
 
 [lib]
 name = "oyster"
