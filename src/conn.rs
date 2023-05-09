@@ -5,20 +5,27 @@ use libsodium_sys::{
     crypto_generichash_blake2b_update, crypto_kdf_derive_from_key, crypto_scalarmult,
     crypto_sign_detached, crypto_sign_verify_detached, randombytes_buf,
 };
-use std::error::Error;
 use std::ffi::c_int;
 use std::io::Write;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::net::TcpStream;
 
 #[derive(thiserror::Error, Debug)]
-enum MolluskError {
+pub enum MolluskError {
     #[error("failed to init libsodium")]
-    InitError,
+    InitFailed,
     #[error("failed to decrypt a message, might indicate forgery")]
-    DecryptError,
+    DecryptFailed,
     #[error("failed to authenticate, might indicate impersonation")]
-    AuthError,
+    AuthFailed,
+    #[error("io error")]
+    IoError(#[from] std::io::Error),
+    #[error("mismatched version, expected {0}, found {1}")]
+    VersionMismatch(u8, u8),
+    #[error("unexpected record type, expected {0}, found {1}")]
+    RecordTypeMismatch(u8, u8),
+    #[error("failed to parse record")]
+    ParseError,
 }
 
 trait Errorable {
@@ -72,8 +79,8 @@ impl Hasher {
     }
 }
 
-fn sodium_init() -> Result<(), impl Error> {
-    unsafe { libsodium_sys::sodium_init() }.error(MolluskError::InitError)
+fn sodium_init() -> Result<(), MolluskError> {
+    unsafe { libsodium_sys::sodium_init() }.error(MolluskError::InitFailed)
 }
 
 fn crypto_kx_keypair() -> ([u8; 32], [u8; 32]) {
@@ -147,7 +154,7 @@ impl MolluskStream {
     pub async fn new_client(
         base: TcpStream,
         server_pubkey: [u8; 32],
-    ) -> Result<MolluskStream, Box<dyn Error + Send + Sync>> {
+    ) -> Result<MolluskStream, MolluskError> {
         let mut stream = MolluskStream {
             base,
             rx_key: [0; 32],
@@ -202,28 +209,31 @@ impl MolluskStream {
             // version check
             let version = stream.base.read_u8().await?;
             if version != 0 {
-                return Err("unrecognized version".into());
+                return Err(MolluskError::VersionMismatch(0, version));
             }
 
             // record type check
             let record_type = stream.base.read_u8().await?;
             if record_type != RecordType::ServerHello as u8 {
-                return Err(
-                    format!("expected ServerHello, unexpected record: {}", record_type).into(),
-                );
+                return Err(MolluskError::RecordTypeMismatch(
+                    RecordType::ServerHello as u8,
+                    record_type,
+                ));
             }
 
             // length check
             let record_length = stream.base.read_u16_le().await?;
             if record_length < 66 {
-                return Err("invalid ServerHello".into());
+                return Err(MolluskError::ParseError);
             }
 
             // read
             let mut msg = vec![0u8; record_length as usize].into_boxed_slice();
             stream.base.read_exact(&mut msg).await?;
 
-            server_pubkey_eph = msg[32..64].try_into()?;
+            server_pubkey_eph = msg[32..64]
+                .try_into()
+                .map_err(|_| MolluskError::ParseError)?;
 
             session_hasher
                 .update(&[version])
@@ -275,19 +285,22 @@ impl MolluskStream {
             // version check
             let version = stream.base.read_u8().await?;
             if version != 0 {
-                return Err("unrecognized version".into());
+                return Err(MolluskError::VersionMismatch(0, version));
             }
 
             // record type check
             let record_type = stream.base.read_u8().await?;
             if record_type != RecordType::Auth as u8 {
-                return Err(format!("expected Auth, unexpected record: {}", record_type).into());
+                return Err(MolluskError::RecordTypeMismatch(
+                    RecordType::Auth as u8,
+                    record_type,
+                ));
             }
 
             // length check
             let record_length = stream.base.read_u16_le().await?;
             if record_length != 104 {
-                return Err("invalid Auth".into());
+                return Err(MolluskError::ParseError);
             }
 
             // read
@@ -310,7 +323,7 @@ impl MolluskStream {
                     server_handshake_key.as_ptr(),
                 )
             }
-            .error(MolluskError::DecryptError)?;
+            .error(MolluskError::DecryptFailed)?;
 
             unsafe {
                 crypto_sign_verify_detached(
@@ -320,7 +333,7 @@ impl MolluskStream {
                     server_pubkey.as_ptr(),
                 )
             }
-            .error(MolluskError::AuthError)?;
+            .error(MolluskError::AuthFailed)?;
 
             session_hasher.update(&msg[..92]);
         }
@@ -331,23 +344,22 @@ impl MolluskStream {
             // version check
             let version = stream.base.read_u8().await?;
             if version != 0 {
-                return Err("unrecognized version".into());
+                return Err(MolluskError::VersionMismatch(0, version));
             }
 
             // record type check
             let record_type = stream.base.read_u8().await?;
             if record_type != RecordType::HandshakeFinish as u8 {
-                return Err(format!(
-                    "expected HandshakeFinish, unexpected record: {}",
-                    record_type
-                )
-                .into());
+                return Err(MolluskError::RecordTypeMismatch(
+                    RecordType::HandshakeFinish as u8,
+                    record_type,
+                ));
             }
 
             // length check
             let record_length = stream.base.read_u16_le().await?;
             if record_length != 72 {
-                return Err("invalid HandshakeFinish".into());
+                return Err(MolluskError::ParseError);
             }
 
             // read
@@ -370,7 +382,7 @@ impl MolluskStream {
                     server_handshake_key.as_ptr(),
                 )
             }
-            .error(MolluskError::DecryptError)?;
+            .error(MolluskError::DecryptFailed)?;
 
             let mut server_finished_key = [0u8; 32];
             unsafe {
@@ -392,7 +404,7 @@ impl MolluskStream {
                     server_finished_key.as_ptr(),
                 )
             }
-            .error(MolluskError::AuthError)?;
+            .error(MolluskError::AuthFailed)?;
 
             session_hasher.update(&msg[..60]);
         }
@@ -499,7 +511,7 @@ impl MolluskStream {
     pub async fn new_server(
         base: TcpStream,
         server_seckey: [u8; 64],
-    ) -> Result<MolluskStream, Box<dyn Error + Send + Sync>> {
+    ) -> Result<MolluskStream, MolluskError> {
         let mut stream = MolluskStream {
             base,
             rx_key: [0; 32],
@@ -529,28 +541,31 @@ impl MolluskStream {
             // version check
             let version = stream.base.read_u8().await?;
             if version != 0 {
-                return Err("unrecognized version".into());
+                return Err(MolluskError::VersionMismatch(0, version));
             }
 
             // record type check
             let record_type = stream.base.read_u8().await?;
             if record_type != RecordType::ClientHello as u8 {
-                return Err(
-                    format!("expected ClientHello, unexpected record: {}", record_type).into(),
-                );
+                return Err(MolluskError::RecordTypeMismatch(
+                    RecordType::ClientHello as u8,
+                    record_type,
+                ));
             }
 
             // length check
             let record_length = stream.base.read_u16_le().await?;
             if record_length < 66 {
-                return Err("invalid ClientHello".into());
+                return Err(MolluskError::ParseError);
             }
 
             // read
             let mut msg = vec![0u8; record_length as usize].into_boxed_slice();
             stream.base.read_exact(&mut msg).await?;
 
-            client_pubkey_eph = msg[32..64].try_into()?;
+            client_pubkey_eph = msg[32..64]
+                .try_into()
+                .map_err(|_| MolluskError::ParseError)?;
 
             session_hasher
                 .update(&[version])
@@ -723,23 +738,22 @@ impl MolluskStream {
             // version check
             let version = stream.base.read_u8().await?;
             if version != 0 {
-                return Err("unrecognized version".into());
+                return Err(MolluskError::VersionMismatch(0, version));
             }
 
             // record type check
             let record_type = stream.base.read_u8().await?;
             if record_type != RecordType::HandshakeFinish as u8 {
-                return Err(format!(
-                    "expected HandshakeFinish, unexpected record: {}",
-                    record_type
-                )
-                .into());
+                return Err(MolluskError::RecordTypeMismatch(
+                    RecordType::HandshakeFinish as u8,
+                    record_type,
+                ));
             }
 
             // length check
             let record_length = stream.base.read_u16_le().await?;
             if record_length != 72 {
-                return Err("invalid HandshakeFinish".into());
+                return Err(MolluskError::ParseError);
             }
 
             // read
@@ -762,7 +776,7 @@ impl MolluskStream {
                     client_handshake_key.as_ptr(),
                 )
             }
-            .error(MolluskError::DecryptError)?;
+            .error(MolluskError::DecryptFailed)?;
 
             let mut client_finished_key = [0u8; 32];
             unsafe {
@@ -784,7 +798,7 @@ impl MolluskStream {
                     client_finished_key.as_ptr(),
                 )
             }
-            .error(MolluskError::AuthError)?;
+            .error(MolluskError::AuthFailed)?;
 
             session_hasher.update(&msg[..60]);
         }
