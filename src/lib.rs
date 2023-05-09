@@ -146,7 +146,6 @@ pub fn verify(
         _ => Err("timestamp decode failure"),
     })?;
     let now = Utc::now().timestamp_millis();
-    println!("{}, {}, {}", (now as i128), (max_age as i128), timestamp);
     if (now as i128) - (max_age as i128) > timestamp {
         return Err("attestation is too old".into());
     }

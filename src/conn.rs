@@ -941,7 +941,6 @@ impl AsyncWrite for MolluskStream {
         cx: &mut std::task::Context<'_>,
         buf: &[u8],
     ) -> std::task::Poll<Result<usize, std::io::Error>> {
-        println!("poll_write: {:?}", buf);
         // flush existing data first
         std::task::ready!(self.as_mut().poll_flush(cx))?;
 
@@ -977,11 +976,6 @@ impl AsyncWrite for MolluskStream {
         // queue up new buf
         self.wbuf = new_buf;
         self.pending_write = self.wbuf.len();
-
-        println!(
-            "poll_write: queued: {:?}, len: {}",
-            self.wbuf, self.pending_write
-        );
 
         std::task::Poll::Ready(Ok(len as usize))
     }
