@@ -10,6 +10,9 @@ use serde_json;
 use std::collections::BTreeMap;
 use std::error::Error;
 
+mod conn;
+
+pub use conn::MolluskStream;
 
 #[derive(Deserialize)]
 struct EnclaveConfig {
