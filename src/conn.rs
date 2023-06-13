@@ -8,7 +8,6 @@ use libsodium_sys::{
 use std::ffi::c_int;
 use std::io::Write;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
-use tokio::net::TcpStream;
 
 #[derive(thiserror::Error, Debug)]
 pub enum MolluskError {
@@ -132,9 +131,9 @@ enum RecordType {
 }
 
 #[derive(Debug)]
-pub struct MolluskStream {
+pub struct MolluskStream<Base: AsyncWrite + AsyncRead + Unpin> {
     // base stream for the connection
-    base: TcpStream,
+    base: Base,
     // rx key
     rx_key: [u8; 32],
     // tx key
@@ -149,12 +148,12 @@ pub struct MolluskStream {
     pending_write: usize,
 }
 
-impl MolluskStream {
+impl<Base: AsyncWrite + AsyncRead + Unpin> MolluskStream<Base> {
     // client mode
     pub async fn new_client(
-        base: TcpStream,
+        base: Base,
         server_pubkey: [u8; 32],
-    ) -> Result<MolluskStream, MolluskError> {
+    ) -> Result<MolluskStream<Base>, MolluskError> {
         let mut stream = MolluskStream {
             base,
             rx_key: [0; 32],
@@ -509,9 +508,9 @@ impl MolluskStream {
 
     // server mode
     pub async fn new_server(
-        base: TcpStream,
+        base: Base,
         server_seckey: [u8; 64],
-    ) -> Result<MolluskStream, MolluskError> {
+    ) -> Result<MolluskStream<Base>, MolluskError> {
         let mut stream = MolluskStream {
             base,
             rx_key: [0; 32],
@@ -850,7 +849,7 @@ impl MolluskStream {
     }
 }
 
-impl AsyncRead for MolluskStream {
+impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncRead for MolluskStream<Base> {
     // IMPORTANT: Return Pending only as a direct result of base returning Pending
     // Ensures wakers are set up correctly
     fn poll_read(
@@ -947,7 +946,7 @@ impl AsyncRead for MolluskStream {
     }
 }
 
-impl AsyncWrite for MolluskStream {
+impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncWrite for MolluskStream<Base> {
     // IMPORTANT: Return Pending only as a direct result of base returning Pending
     // Ensures wakers are set up correctly
     fn poll_write(
