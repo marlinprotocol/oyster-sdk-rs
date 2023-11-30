@@ -11,9 +11,9 @@ use std::collections::BTreeMap;
 
 #[derive(Debug)]
 pub struct AttestationDecoded {
-    pcrs: Vec<String>,
-    total_memory: usize,
-    total_cpus: usize,
+    pub pcrs: Vec<String>,
+    pub total_memory: usize,
+    pub total_cpus: usize,
 }
 
 #[derive(thiserror::Error, Debug)]
