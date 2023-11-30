@@ -9,6 +9,13 @@ use serde_cbor::{self, value, value::Value};
 use serde_json;
 use std::collections::BTreeMap;
 
+#[derive(Debug)]
+pub struct AttestationDecoded {
+    pcrs: Vec<String>,
+    total_memory: usize,
+    total_cpus: usize,
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum AttestationError {
     #[error("failed to parse: {0}")]
@@ -220,4 +227,63 @@ pub async fn get_attestation_doc(endpoint: Uri) -> Result<Vec<u8>, AttestationEr
     let client = Client::new();
     let res = client.get(endpoint).await?;
     Ok(hyper::body::to_bytes(res).await?.to_vec())
+}
+
+pub fn decode_attestation(
+    attestation_doc: Vec<u8>,
+) -> Result<AttestationDecoded, AttestationError> {
+    let mut result = AttestationDecoded {
+        pcrs: Vec::new(),
+        total_cpus: 0,
+        total_memory: 0,
+    };
+    // parse attestation doc
+    let cosesign1 = CoseSign1::from_bytes(&attestation_doc)
+        .map_err(|e| AttestationError::ParseFailed(format!("cose: {e}")))?;
+    let payload = cosesign1
+        .get_payload::<Openssl>(None)
+        .map_err(|e| AttestationError::ParseFailed(format!("cose payload: {e}")))?;
+    let cbor = serde_cbor::from_slice::<Value>(&payload)
+        .map_err(|e| AttestationError::ParseFailed(format!("cbor: {e}")))?;
+    let mut attestation_doc = value::from_value::<BTreeMap<Value, Value>>(cbor)
+        .map_err(|e| AttestationError::ParseFailed(format!("doc: {e}")))?;
+
+    let pcrs_arr = attestation_doc
+        .remove(&"pcrs".to_owned().into())
+        .ok_or(AttestationError::ParseFailed(format!("pcrs not found")))?;
+    let mut pcrs_arr = value::from_value::<BTreeMap<Value, Value>>(pcrs_arr)
+        .map_err(|e| AttestationError::ParseFailed(format!("pcrs: {e}")))?;
+
+    //parse pcrs
+    for i in 0u8..3u8 {
+        let pcr = pcrs_arr
+            .remove(&i.into())
+            .ok_or(AttestationError::ParseFailed(format!("pcr{i} not found")))?;
+        let pcr = (match pcr {
+            Value::Bytes(b) => Ok(b),
+            _ => Err(AttestationError::ParseFailed(
+                "pcr{i} decode failure".into(),
+            )),
+        })?;
+        result.pcrs.push(hex::encode(pcr));
+    }
+
+    // parse cpu and memory
+    let user_data = attestation_doc
+        .remove(&"user_data".to_owned().into())
+        .ok_or(AttestationError::ParseFailed(
+            "user data not found in attestation doc".to_owned(),
+        ))?;
+    let user_data = (match user_data {
+        Value::Bytes(b) => Ok(b),
+        _ => Err(AttestationError::ParseFailed(
+            "user data decode failure".into(),
+        )),
+    })?;
+    let size = serde_json::from_slice::<EnclaveConfig>(user_data.as_slice())
+        .map_err(|e| AttestationError::ParseFailed(format!("enclave config: {e}")))?;
+    result.total_cpus = size.total_cpus;
+    result.total_memory = size.total_memory;
+
+    Ok(result)
 }
