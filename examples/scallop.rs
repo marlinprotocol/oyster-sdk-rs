@@ -13,9 +13,9 @@ async fn server_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> 
     let server = TcpListener::bind("127.0.0.1:21000").await?;
 
     loop {
-        let (mut stream, _) = server.accept().await?;
+        let (stream, _) = server.accept().await?;
 
-        new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(&mut stream, &key).await?;
+        let stream = new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(stream, &key).await?;
 
         println!("Server done.");
     }
@@ -23,9 +23,9 @@ async fn server_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> 
 
 async fn client_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> {
     loop {
-        let mut client = TcpStream::connect("127.0.0.1:21000").await?;
+        let stream = TcpStream::connect("127.0.0.1:21000").await?;
 
-        new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(&mut client, &key).await?;
+        let stream = new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(stream, &key).await?;
 
         println!("Client done.");
 
