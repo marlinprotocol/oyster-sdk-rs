@@ -213,7 +213,7 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s<
     // length should be zero
     if len != 0 {
         return Err(ScallopError::ProtocolError(
-            "non zero negotiation length".into(),
+            "non zero second negotiation length".into(),
         ));
     }
 
@@ -229,7 +229,7 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s<
     // handshake payload should be empty
     if len != 0 {
         return Err(ScallopError::ProtocolError(
-            "non zero first handshake payload".into(),
+            "non zero second handshake payload".into(),
         ));
     }
 
@@ -298,7 +298,7 @@ pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s<
     // length should be zero
     if len != 0 {
         return Err(ScallopError::ProtocolError(
-            "non zero negotiation length".into(),
+            "non zero first negotiation length".into(),
         ));
     }
 
@@ -344,7 +344,7 @@ pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s<
     // length should be zero
     if len != 0 {
         return Err(ScallopError::ProtocolError(
-            "non zero negotiation length".into(),
+            "non zero third negotiation length".into(),
         ));
     }
 
@@ -360,7 +360,7 @@ pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s<
     // handshake payload should be empty
     if len != 0 {
         return Err(ScallopError::ProtocolError(
-            "non zero first handshake payload".into(),
+            "non zero third handshake payload".into(),
         ));
     }
 
