@@ -295,5 +295,35 @@ pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
 
     //---- <- e, ee, s, es end ----//
 
+    //---- -> s, se start ----//
+
+    // read negotiation length
+    let len = stream.read_u16().await?;
+
+    // length should be zero
+    if len != 0 {
+        return Err(ScallopError::ProtocolError(
+            "non zero negotiation length".into(),
+        ));
+    }
+
+    // read noise message length
+    let len = stream.read_u16().await?;
+
+    // read handshake message
+    stream.read_exact(&mut buf[0..len as usize]).await?;
+
+    // handle handshake message
+    let len = noise.read_message(&buf[0..len as usize], &mut noise_buf)?;
+
+    // handshake payload should be empty
+    if len != 0 {
+        return Err(ScallopError::ProtocolError(
+            "non zero first handshake payload".into(),
+        ));
+    }
+
+    //---- -> s, se end ----//
+
     Ok(())
 }
