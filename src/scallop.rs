@@ -226,6 +226,9 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
 
     //---- -> s, se end ----//
 
+    // handshake is done, switch to transport mode
+    let noise = noise.into_transport_mode()?;
+
     Ok(())
 }
 
@@ -324,6 +327,9 @@ pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
     }
 
     //---- -> s, se end ----//
+
+    // handshake is done, switch to transport mode
+    let noise = noise.into_transport_mode()?;
 
     Ok(())
 }
