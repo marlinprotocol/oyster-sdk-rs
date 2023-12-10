@@ -161,6 +161,11 @@ pub struct ScallopStream<Stream: AsyncWrite + AsyncRead + Unpin> {
     mode: ReadMode,
     read_end: usize,
     read_start: usize,
+
+    // write buffer
+    wbuf: Box<[u8]>,
+    write_start: usize,
+    write_end: usize,
 }
 
 #[allow(non_snake_case)]
@@ -257,6 +262,9 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s<
         mode: ReadMode::Length,
         read_start: 0,
         read_end: 0,
+        wbuf: vec![].into_boxed_slice(),
+        write_start: 0,
+        write_end: 0,
     })
 }
 
@@ -369,6 +377,9 @@ pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s<
         mode: ReadMode::Length,
         read_start: 0,
         read_end: 0,
+        wbuf: vec![].into_boxed_slice(),
+        write_start: 0,
+        write_end: 0,
     })
 }
 
@@ -440,5 +451,74 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncRead for ScallopStream<Base> {
                 return std::task::Poll::Ready(Ok(()));
             }
         }
+    }
+}
+
+impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncWrite for ScallopStream<Base> {
+    // IMPORTANT: Return Pending only as a direct result of base returning Pending
+    // Ensures wakers are set up correctly
+    fn poll_write(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        // flush existing data first
+        std::task::ready!(self.as_mut().poll_flush(cx))?;
+
+        let stream = self.get_mut();
+
+        // construct new buf
+        // up to 16000 bytes at once
+        let len = std::cmp::min(buf.len(), 64000) as u16;
+        let mut new_buf = vec![0u8; len as usize + 1000].into_boxed_slice();
+
+        // set noise message
+        let noise_len = stream
+            .noise
+            .write_message(&buf[0..len as usize], &mut new_buf[2..])
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+        // set length
+        (&mut new_buf[0..2]).copy_from_slice(&(noise_len as u16).to_be_bytes());
+
+        // queue up new buf
+        stream.wbuf = new_buf;
+        stream.write_start = 0;
+        stream.write_end = noise_len + 2;
+
+        std::task::Poll::Ready(Ok(len as usize))
+    }
+
+    // IMPORTANT: Return Pending only as a direct result of base returning Pending
+    // Ensures wakers are set up correctly
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        let stream = self.get_mut();
+
+        while stream.write_start != stream.write_end {
+            let base = std::pin::pin!(&mut stream.stream);
+
+            // try to send existing messages first
+            let size = std::task::ready!(
+                base.poll_write(cx, &stream.wbuf[stream.write_start..stream.write_end])
+            )?;
+            stream.write_start += size;
+        }
+
+        std::task::Poll::Ready(Ok(()))
+    }
+
+    // IMPORTANT: Return Pending only as a direct result of base returning Pending
+    // Ensures wakers are set up correctly
+    fn poll_shutdown(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        let stream = self.get_mut();
+        let base = std::pin::pin!(&mut stream.stream);
+
+        return base.poll_shutdown(cx);
     }
 }
