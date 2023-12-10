@@ -32,6 +32,10 @@ name = "verifier"
 path = "src/main.rs"
 
 [[example]]
+name = "scallop"
+path = "examples/scallop.rs"
+
+[[example]]
 name = "hyper"
 path = "examples/hyper.rs"
 
