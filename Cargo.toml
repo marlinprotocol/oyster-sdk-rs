@@ -22,6 +22,7 @@ libsodium-sys-stable = { version = "1.19.27" }
 thiserror = "1.0.40"
 http = "0.2.9"
 tower = { version = "0.4.13", features = ["full"] }
+snow = "0.9.4"
 
 [lib]
 name = "oyster"
