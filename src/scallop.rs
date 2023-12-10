@@ -130,8 +130,7 @@
 // - (desirable?) 0RTT
 
 use snow::{Builder, TransportState};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 
 #[derive(thiserror::Error, Debug)]
 pub enum ScallopError {
@@ -145,9 +144,23 @@ pub enum ScallopError {
     ProtocolError(String),
 }
 
+#[derive(PartialEq)]
+enum ReadMode {
+    Length,
+    Body,
+    Read,
+}
+
 pub struct ScallopStream<Stream: AsyncWrite + AsyncRead + Unpin> {
     noise: TransportState,
     stream: Stream,
+
+    // read buffer
+    buf: Box<[u8]>,
+    pending: usize,
+    mode: ReadMode,
+    read_end: usize,
+    read_start: usize,
 }
 
 #[allow(non_snake_case)]
@@ -236,7 +249,15 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s<
     // handshake is done, switch to transport mode
     let noise = noise.into_transport_mode()?;
 
-    Ok(ScallopStream { noise, stream })
+    Ok(ScallopStream {
+        noise,
+        stream,
+        buf: vec![0u8; 2].into_boxed_slice(),
+        pending: 2,
+        mode: ReadMode::Length,
+        read_start: 0,
+        read_end: 0,
+    })
 }
 
 #[allow(non_snake_case)]
@@ -340,5 +361,84 @@ pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s<
     // handshake is done, switch to transport mode
     let noise = noise.into_transport_mode()?;
 
-    Ok(ScallopStream { noise, stream })
+    Ok(ScallopStream {
+        noise,
+        stream,
+        buf: vec![0u8; 2].into_boxed_slice(),
+        pending: 2,
+        mode: ReadMode::Length,
+        read_start: 0,
+        read_end: 0,
+    })
+}
+
+impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncRead for ScallopStream<Base> {
+    // IMPORTANT: Return Pending only as a direct result of base returning Pending
+    // Ensures wakers are set up correctly
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        let stream = self.get_mut();
+        loop {
+            while stream.pending != 0 {
+                let base = std::pin::pin!(&mut stream.stream);
+
+                // do not have enough data, try to read more
+                let len = stream.buf.len();
+                let mut buf = ReadBuf::new(&mut stream.buf[(len - stream.pending)..]);
+                std::task::ready!(base.poll_read(cx, &mut buf))?;
+
+                // check eof
+                if buf.filled().len() == 0 {
+                    return std::task::Poll::Ready(Ok(()));
+                }
+                stream.pending -= buf.filled().len();
+            }
+
+            // pending should always be 0 after this point
+
+            if stream.mode == ReadMode::Length {
+                // we have read the length
+
+                // parse length
+                let record_length = u16::from_be_bytes(stream.buf[0..2].try_into().unwrap());
+
+                // set up to read record
+                stream.pending = record_length.into();
+                stream.mode = ReadMode::Body;
+                stream.buf = vec![0u8; stream.pending].into_boxed_slice();
+            } else if stream.mode == ReadMode::Body {
+                // we have the data
+
+                // process as noise message
+                let len = stream
+                    .noise
+                    .read_message(&stream.buf.clone(), &mut stream.buf)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+                // set up to send body upstream
+                stream.read_start = 0;
+                stream.read_end = len;
+                stream.mode = ReadMode::Read;
+            } else {
+                if buf.remaining() < stream.read_end - stream.read_start {
+                    // can transmit only partial
+                    let read_start = stream.read_start;
+                    stream.read_start += buf.remaining();
+                    let read_end = read_start + buf.remaining();
+                    buf.put_slice(&stream.buf[read_start..read_end]);
+                } else {
+                    // can transmit full
+                    buf.put_slice(&stream.buf[stream.read_start..stream.read_end]);
+
+                    stream.buf = vec![0u8; 2].into_boxed_slice();
+                    stream.pending = 2;
+                    stream.mode = ReadMode::Length;
+                }
+                return std::task::Poll::Ready(Ok(()));
+            }
+        }
+    }
 }
