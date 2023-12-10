@@ -151,6 +151,7 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
     secret: &[u8; 32],
 ) -> Result<(), ScallopError> {
     let mut buf = [0u8; 1024];
+    let mut noise_buf = [0u8; 1024];
 
     let prologue = b"NoiseSocketInit1\x00\x00";
 
@@ -178,6 +179,36 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
     stream.write_all(&buf[0..4 + size]).await?;
 
     //---- -> e end ----//
+
+    //---- <- e, ee, s, es start ----//
+
+    // read negotiation length
+    let len = stream.read_u16().await?;
+
+    // length should be zero
+    if len != 0 {
+        return Err(ScallopError::ProtocolError(
+            "non zero negotiation length".into(),
+        ));
+    }
+
+    // read noise message length
+    let len = stream.read_u16().await?;
+
+    // read handshake message
+    stream.read_exact(&mut buf[0..len as usize]).await?;
+
+    // handle handshake message
+    let len = noise.read_message(&buf[0..len as usize], &mut noise_buf)?;
+
+    // handshake payload should be empty
+    if len != 0 {
+        return Err(ScallopError::ProtocolError(
+            "non zero first handshake payload".into(),
+        ));
+    }
+
+    //---- <- e, ee, s, es end ----//
 
     Ok(())
 }
