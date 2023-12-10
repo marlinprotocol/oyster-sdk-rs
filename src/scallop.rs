@@ -135,6 +135,12 @@ use snow::Builder;
 pub enum ScallopError {
     #[error("failed to init builder")]
     InitFailed(#[source] snow::Error),
+    #[error("transport error")]
+    TransportError(#[from] tokio::io::Error),
+    #[error("noise error")]
+    NoiseError(#[from] snow::Error),
+    #[error("protocol error")]
+    ProtocolError(String),
 }
 
 #[allow(non_snake_case)]
