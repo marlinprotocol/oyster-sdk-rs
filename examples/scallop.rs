@@ -16,6 +16,8 @@ async fn server_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> 
         let (mut stream, _) = server.accept().await?;
 
         new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(&mut stream, &key).await?;
+
+        println!("Server done.");
     }
 }
 
@@ -25,7 +27,7 @@ async fn client_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> 
 
         new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(&mut client, &key).await?;
 
-        println!("Done.");
+        println!("Client done.");
 
         sleep(Duration::from_secs(5)).await;
     }
