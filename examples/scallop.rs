@@ -4,6 +4,7 @@ use std::time::Duration;
 use libsodium_sys::{
     crypto_sign_ed25519_pk_to_curve25519, crypto_sign_ed25519_sk_to_curve25519, crypto_sign_keypair,
 };
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::time::sleep;
 
@@ -15,7 +16,18 @@ async fn server_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> 
     loop {
         let (stream, _) = server.accept().await?;
 
-        let stream = new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(stream, &key).await?;
+        let mut stream = new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(stream, &key).await?;
+
+        loop {
+            let mut buf = [0u8; 1000];
+            let len = stream.read(&mut buf).await?;
+
+            if len == 0 {
+                break;
+            }
+
+            println!("Server: {} bytes: {:?}", len, &buf[0..len]);
+        }
 
         println!("Server done.");
     }
@@ -25,11 +37,29 @@ async fn client_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> 
     loop {
         let stream = TcpStream::connect("127.0.0.1:21000").await?;
 
-        let stream = new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(stream, &key).await?;
+        let mut stream = new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(stream, &key).await?;
+
+        stream.write_all(b"Hello!").await?;
+        stream.flush().await?;
+
+        sleep(Duration::from_secs(1)).await;
+
+        stream.write_all(b"Hello!").await?;
+        stream.flush().await?;
+
+        sleep(Duration::from_secs(1)).await;
+
+        stream.write_all(b"Hello!").await?;
+        stream.flush().await?;
+
+        sleep(Duration::from_secs(1)).await;
+
+        stream.write_all(b"Hello!").await?;
+        stream.flush().await?;
+
+        sleep(Duration::from_secs(1)).await;
 
         println!("Client done.");
-
-        sleep(Duration::from_secs(5)).await;
     }
 }
 
