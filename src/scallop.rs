@@ -141,13 +141,15 @@ pub enum ScallopError {
 async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
     secret: &[u8],
 ) -> Result<(), ScallopError> {
+    let prologue = b"NoiseSocketInit1\x00\x00";
+
     let noise = Builder::new(
         "Noise_XX_25519_ChaChaPoly_BLAKE2s"
             .parse()
             .map_err(ScallopError::InitFailed)?,
     )
     .local_private_key(secret)
-    .prologue(b"NoiseSocketInit1")
+    .prologue(prologue)
     .build_initiator()
     .map_err(ScallopError::InitFailed)?;
 
@@ -158,13 +160,15 @@ async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
 async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
     secret: &[u8],
 ) -> Result<(), ScallopError> {
+    let prologue = b"NoiseSocketInit1\x00\x00";
+
     let noise = Builder::new(
         "Noise_XX_25519_ChaChaPoly_BLAKE2s"
             .parse()
             .map_err(ScallopError::InitFailed)?,
     )
     .local_private_key(secret)
-    .prologue(b"NoiseSocketInit1")
+    .prologue(prologue)
     .build_responder()
     .map_err(ScallopError::InitFailed)?;
 
