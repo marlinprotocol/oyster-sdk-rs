@@ -128,3 +128,11 @@
 //
 // TODOs:
 // - (desirable?) 0RTT
+
+use snow::Builder;
+
+#[allow(non_snake_case)]
+async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s() {}
+
+#[allow(non_snake_case)]
+async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s() {}
