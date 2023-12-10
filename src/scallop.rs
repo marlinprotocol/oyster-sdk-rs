@@ -130,6 +130,8 @@
 // - (desirable?) 0RTT
 
 use snow::Builder;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ScallopError {
@@ -144,12 +146,15 @@ pub enum ScallopError {
 }
 
 #[allow(non_snake_case)]
-async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
-    secret: &[u8],
+pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
+    stream: &mut TcpStream,
+    secret: &[u8; 32],
 ) -> Result<(), ScallopError> {
+    let mut buf = [0u8; 1024];
+
     let prologue = b"NoiseSocketInit1\x00\x00";
 
-    let noise = Builder::new(
+    let mut noise = Builder::new(
         "Noise_XX_25519_ChaChaPoly_BLAKE2s"
             .parse()
             .map_err(ScallopError::InitFailed)?,
@@ -158,6 +163,21 @@ async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
     .prologue(prologue)
     .build_initiator()
     .map_err(ScallopError::InitFailed)?;
+
+    //---- -> e start ----//
+
+    // first two bytes are already zero, skip writing negotiation payload
+
+    // handshake message
+    let size = noise.write_message(&[], &mut buf[4..])?;
+
+    // handshake length
+    buf[2..4].copy_from_slice(&(size as u16).to_be_bytes());
+
+    // send to the server
+    stream.write_all(&buf[0..4 + size]).await?;
+
+    //---- -> e end ----//
 
     Ok(())
 }
