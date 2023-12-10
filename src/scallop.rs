@@ -210,6 +210,22 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
 
     //---- <- e, ee, s, es end ----//
 
+    //---- -> s, se start ----//
+
+    // negotiation length
+    buf[0..2].copy_from_slice(&0u16.to_be_bytes());
+
+    // handshake message
+    let size = noise.write_message(&[], &mut buf[4..])?;
+
+    // handshake length
+    buf[2..4].copy_from_slice(&(size as u16).to_be_bytes());
+
+    // send to the server
+    stream.write_all(&buf[0..4 + size]).await?;
+
+    //---- -> s, se end ----//
+
     Ok(())
 }
 
