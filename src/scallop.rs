@@ -129,7 +129,7 @@
 // TODOs:
 // - (desirable?) 0RTT
 
-use snow::Builder;
+use snow::{Builder, TransportState};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
@@ -145,11 +145,16 @@ pub enum ScallopError {
     ProtocolError(String),
 }
 
+pub struct ScallopStream {
+    noise: TransportState,
+    stream: TcpStream,
+}
+
 #[allow(non_snake_case)]
 pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
-    stream: &mut TcpStream,
+    mut stream: TcpStream,
     secret: &[u8; 32],
-) -> Result<(), ScallopError> {
+) -> Result<ScallopStream, ScallopError> {
     let mut buf = [0u8; 1024];
     let mut noise_buf = [0u8; 1024];
 
@@ -229,14 +234,14 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
     // handshake is done, switch to transport mode
     let noise = noise.into_transport_mode()?;
 
-    Ok(())
+    Ok(ScallopStream { noise, stream })
 }
 
 #[allow(non_snake_case)]
 pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
-    stream: &mut TcpStream,
+    mut stream: TcpStream,
     secret: &[u8; 32],
-) -> Result<(), ScallopError> {
+) -> Result<ScallopStream, ScallopError> {
     let mut buf = [0u8; 1024];
     let mut noise_buf = [0u8; 1024];
 
@@ -331,5 +336,5 @@ pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
     // handshake is done, switch to transport mode
     let noise = noise.into_transport_mode()?;
 
-    Ok(())
+    Ok(ScallopStream { noise, stream })
 }
