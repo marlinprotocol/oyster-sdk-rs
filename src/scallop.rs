@@ -145,16 +145,18 @@ pub enum ScallopError {
     ProtocolError(String),
 }
 
-pub struct ScallopStream {
+pub struct ScallopStream<Stream: AsyncWrite + AsyncRead + Unpin> {
     noise: TransportState,
-    stream: TcpStream,
+    stream: Stream,
 }
 
 #[allow(non_snake_case)]
-pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
-    mut stream: TcpStream,
+pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s<
+    Base: AsyncWrite + AsyncRead + Unpin,
+>(
+    mut stream: Base,
     secret: &[u8; 32],
-) -> Result<ScallopStream, ScallopError> {
+) -> Result<ScallopStream<Base>, ScallopError> {
     let mut buf = [0u8; 1024];
     let mut noise_buf = [0u8; 1024];
 
@@ -238,10 +240,12 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
 }
 
 #[allow(non_snake_case)]
-pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(
-    mut stream: TcpStream,
+pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s<
+    Base: AsyncWrite + AsyncRead + Unpin,
+>(
+    mut stream: Base,
     secret: &[u8; 32],
-) -> Result<ScallopStream, ScallopError> {
+) -> Result<ScallopStream<Base>, ScallopError> {
     let mut buf = [0u8; 1024];
     let mut noise_buf = [0u8; 1024];
 
