@@ -169,7 +169,7 @@ pub struct ScallopStream<Stream: AsyncWrite + AsyncRead + Unpin> {
 }
 
 #[allow(non_snake_case)]
-pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s<
+pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2b<
     Base: AsyncWrite + AsyncRead + Unpin,
 >(
     mut stream: Base,
@@ -181,7 +181,7 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s<
     let prologue = b"NoiseSocketInit1\x00\x00";
 
     let mut noise = Builder::new(
-        "Noise_XX_25519_ChaChaPoly_BLAKE2s"
+        "Noise_XX_25519_ChaChaPoly_BLAKE2b"
             .parse()
             .map_err(ScallopError::InitFailed)?,
     )
@@ -269,7 +269,7 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s<
 }
 
 #[allow(non_snake_case)]
-pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s<
+pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2b<
     Base: AsyncWrite + AsyncRead + Unpin,
 >(
     mut stream: Base,
@@ -281,7 +281,7 @@ pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s<
     let prologue = b"NoiseSocketInit1\x00\x00";
 
     let mut noise = Builder::new(
-        "Noise_XX_25519_ChaChaPoly_BLAKE2s"
+        "Noise_XX_25519_ChaChaPoly_BLAKE2b"
             .parse()
             .map_err(ScallopError::InitFailed)?,
     )

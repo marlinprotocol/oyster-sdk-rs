@@ -16,7 +16,7 @@ async fn server_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> 
     loop {
         let (stream, _) = server.accept().await?;
 
-        let mut stream = new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(stream, &key).await?;
+        let mut stream = new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2b(stream, &key).await?;
 
         loop {
             let mut buf = [0u8; 1000];
@@ -37,7 +37,7 @@ async fn client_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> 
     loop {
         let stream = TcpStream::connect("127.0.0.1:21000").await?;
 
-        let mut stream = new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2s(stream, &key).await?;
+        let mut stream = new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2b(stream, &key).await?;
 
         stream.write_all(b"Hello!").await?;
         stream.flush().await?;
