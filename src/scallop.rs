@@ -383,6 +383,12 @@ pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2b<
     })
 }
 
+impl<Base: AsyncWrite + AsyncRead + Unpin> ScallopStream<Base> {
+    pub fn get_remote_static(&self) -> Option<&[u8]> {
+        self.noise.get_remote_static()
+    }
+}
+
 impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncRead for ScallopStream<Base> {
     // IMPORTANT: Return Pending only as a direct result of base returning Pending
     // Ensures wakers are set up correctly
