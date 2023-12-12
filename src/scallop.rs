@@ -85,6 +85,11 @@
 //   - Server requests a new attestation in the second message
 //   - Client sends the attestation in the third message
 //
+// How does the server know whether to request a new attestation or not?
+// The client sends the static key only in the third message.
+//
+// Either switch to IX handshake or incur additional messages and RTT delays.
+//
 // User story 6 - webhook trigger from an unknown client to an unknown server:
 //
 // Client is running inside an enclave.
@@ -104,6 +109,11 @@
 //   - Server requests a new attestation in the second message
 //   - Client sends the attestation in the third message
 //
+// How does the server know whether to request a new attestation or not?
+// The client sends the static key only in the third message.
+//
+// Either switch to IX handshake or incur additional messages and RTT delays.
+//
 // User story considerations:
 // - various handshake shapes
 // - various security levels
@@ -117,7 +127,7 @@
 // - Protocol evolution
 //
 // Conclusions:
-// Pick XX as the Noise Protocol
+// Pick IX as the Noise Protocol
 // - Most flexible and covers wide variety of use cases
 // - At the cost of a higher server delay
 // - At the cost of a lower security level for handshake messages themselves
