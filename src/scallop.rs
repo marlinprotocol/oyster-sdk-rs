@@ -348,8 +348,10 @@ pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
 }
 
 impl<Base: AsyncWrite + AsyncRead + Unpin> ScallopStream<Base> {
-    pub fn get_remote_static(&self) -> Option<&[u8]> {
-        self.noise.get_remote_static()
+    pub fn get_remote_static(&self) -> Option<[u8; 32]> {
+        self.noise
+            .get_remote_static()
+            .map(|x| x.try_into().expect("expected 32 byte key"))
     }
 }
 
