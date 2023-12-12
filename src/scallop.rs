@@ -179,7 +179,7 @@ pub struct ScallopStream<Stream: AsyncWrite + AsyncRead + Unpin> {
 }
 
 #[allow(non_snake_case)]
-pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2b<
+pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
     Base: AsyncWrite + AsyncRead + Unpin,
 >(
     mut stream: Base,
@@ -191,7 +191,7 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2b<
     let prologue = b"NoiseSocketInit1\x00\x00";
 
     let mut noise = Builder::new(
-        "Noise_XX_25519_ChaChaPoly_BLAKE2b"
+        "Noise_IX_25519_ChaChaPoly_BLAKE2b"
             .parse()
             .map_err(ScallopError::InitFailed)?,
     )
@@ -200,7 +200,7 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2b<
     .build_initiator()
     .map_err(ScallopError::InitFailed)?;
 
-    //---- -> e start ----//
+    //---- -> e, s start ----//
 
     // first two bytes are already zero, skip writing negotiation payload
 
@@ -213,9 +213,9 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2b<
     // send to the server
     stream.write_all(&buf[0..4 + size]).await?;
 
-    //---- -> e end ----//
+    //---- -> e, s end ----//
 
-    //---- <- e, ee, s, es start ----//
+    //---- <- e, ee, se, s, es start ----//
 
     // read negotiation length
     let len = stream.read_u16().await?;
@@ -243,23 +243,7 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2b<
         ));
     }
 
-    //---- <- e, ee, s, es end ----//
-
-    //---- -> s, se start ----//
-
-    // negotiation length
-    buf[0..2].copy_from_slice(&0u16.to_be_bytes());
-
-    // handshake message
-    let size = noise.write_message(&[], &mut buf[4..])?;
-
-    // handshake length
-    buf[2..4].copy_from_slice(&(size as u16).to_be_bytes());
-
-    // send to the server
-    stream.write_all(&buf[0..4 + size]).await?;
-
-    //---- -> s, se end ----//
+    //---- <- e, ee, se, s, es end ----//
 
     // handshake is done, switch to transport mode
     let noise = noise.into_transport_mode()?;
@@ -279,7 +263,7 @@ pub async fn new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2b<
 }
 
 #[allow(non_snake_case)]
-pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2b<
+pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
     Base: AsyncWrite + AsyncRead + Unpin,
 >(
     mut stream: Base,
@@ -291,7 +275,7 @@ pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2b<
     let prologue = b"NoiseSocketInit1\x00\x00";
 
     let mut noise = Builder::new(
-        "Noise_XX_25519_ChaChaPoly_BLAKE2b"
+        "Noise_IX_25519_ChaChaPoly_BLAKE2b"
             .parse()
             .map_err(ScallopError::InitFailed)?,
     )
@@ -300,7 +284,7 @@ pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2b<
     .build_responder()
     .map_err(ScallopError::InitFailed)?;
 
-    //---- -> e start ----//
+    //---- -> e, s start ----//
 
     // read negotiation length
     let len = stream.read_u16().await?;
@@ -328,9 +312,9 @@ pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2b<
         ));
     }
 
-    //---- -> e end ----//
+    //---- -> e, s end ----//
 
-    //---- <- e, ee, s, es start ----//
+    //---- <- e, ee, se, s, es start ----//
 
     // negotiation length
     buf[0..2].copy_from_slice(&0u16.to_be_bytes());
@@ -344,37 +328,7 @@ pub async fn new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2b<
     // send to the client
     stream.write_all(&buf[0..4 + size]).await?;
 
-    //---- <- e, ee, s, es end ----//
-
-    //---- -> s, se start ----//
-
-    // read negotiation length
-    let len = stream.read_u16().await?;
-
-    // length should be zero
-    if len != 0 {
-        return Err(ScallopError::ProtocolError(
-            "non zero third negotiation length".into(),
-        ));
-    }
-
-    // read noise message length
-    let len = stream.read_u16().await?;
-
-    // read handshake message
-    stream.read_exact(&mut buf[0..len as usize]).await?;
-
-    // handle handshake message
-    let len = noise.read_message(&buf[0..len as usize], &mut noise_buf)?;
-
-    // handshake payload should be empty
-    if len != 0 {
-        return Err(ScallopError::ProtocolError(
-            "non zero third handshake payload".into(),
-        ));
-    }
-
-    //---- -> s, se end ----//
+    //---- <- e, ee, se, s, es end ----//
 
     // handshake is done, switch to transport mode
     let noise = noise.into_transport_mode()?;

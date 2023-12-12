@@ -16,7 +16,7 @@ async fn server_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> 
     loop {
         let (stream, _) = server.accept().await?;
 
-        let mut stream = new_server_async_Noise_XX_25519_ChaChaPoly_BLAKE2b(stream, &key).await?;
+        let mut stream = new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b(stream, &key).await?;
 
         println!("Client key: {:?}", stream.get_remote_static());
 
@@ -39,7 +39,7 @@ async fn client_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> 
     loop {
         let stream = TcpStream::connect("127.0.0.1:21000").await?;
 
-        let mut stream = new_client_async_Noise_XX_25519_ChaChaPoly_BLAKE2b(stream, &key).await?;
+        let mut stream = new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b(stream, &key).await?;
 
         println!("Server key: {:?}", stream.get_remote_static());
 
