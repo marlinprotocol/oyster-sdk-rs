@@ -161,6 +161,11 @@ enum ReadMode {
     Read,
 }
 
+trait ScallopAuthStore {
+    fn get(key: &[u8; 32]) -> Option<&([u8; 48], [u8; 48], [u8; 48])>;
+    fn set(key: [u8; 32], pcrs: ([u8; 48], [u8; 48], [u8; 48]));
+}
+
 pub struct ScallopStream<Stream: AsyncWrite + AsyncRead + Unpin> {
     noise: TransportState,
     stream: Stream,
