@@ -256,6 +256,7 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
     Ok(ScallopStream {
         noise,
         stream,
+        // initialize with 2 sized buffer to read length
         buf: vec![0u8; 2].into_boxed_slice(),
         pending: 2,
         mode: ReadMode::Length,
@@ -341,6 +342,7 @@ pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
     Ok(ScallopStream {
         noise,
         stream,
+        // initialize with 2 sized buffer to read length
         buf: vec![0u8; 2].into_boxed_slice(),
         pending: 2,
         mode: ReadMode::Length,
