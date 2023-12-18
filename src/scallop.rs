@@ -114,6 +114,12 @@
 //
 // Either switch to IX handshake or incur additional messages and RTT delays.
 //
+// How does the client know whether to request a new attestation or not?
+// The server sends the static key only in the second message.
+//
+// Nothing can be done since it is impossible for the server to send it beforehand.
+// Investigate solutions like 0-RTT and the like.
+//
 // User story considerations:
 // - various handshake shapes
 // - various security levels
