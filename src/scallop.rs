@@ -85,11 +85,6 @@
 //   - Server requests a new attestation in the second message
 //   - Client sends the attestation in the third message
 //
-// How does the server know whether to request a new attestation or not?
-// The client sends the static key only in the third message.
-//
-// Either switch to IX handshake or incur additional messages and RTT delays.
-//
 // User story 6 - webhook trigger from an unknown client to an unknown server:
 //
 // Client is running inside an enclave.
@@ -109,16 +104,23 @@
 //   - Server requests a new attestation in the second message
 //   - Client sends the attestation in the third message
 //
+// Attestation efficiency:
+//
 // How does the server know whether to request a new attestation or not?
 // The client sends the static key only in the third message.
 //
-// Either switch to IX handshake or incur additional messages and RTT delays.
+// Either switch to I* handshakes or incur additional messages and RTT delays.
 //
 // How does the client know whether to request a new attestation or not?
 // The server sends the static key only in the second message.
 //
-// Nothing can be done since it is impossible for the server to send it beforehand.
-// Investigate solutions like 0-RTT and the like.
+// Nothing can really be done since it is the first message sent by the server.
+// TLS always sends certificates to work around this, but this seems very inefficient.
+//
+// Worst case here is 2 RTT client delay and 1.5 RTT server delay.
+//
+// Once cached on both sides, 1 RTT client delay and 1.5 RTT server delay.
+// (Server still has to wait for the client to request attestation or not)
 //
 // User story considerations:
 // - various handshake shapes
@@ -144,6 +146,7 @@
 //
 // TODOs:
 // - (desirable?) 0RTT
+//   - main concern is replay attacks
 
 use snow::{Builder, TransportState};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
