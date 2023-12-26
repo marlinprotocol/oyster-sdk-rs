@@ -170,9 +170,15 @@ enum ReadMode {
     Read,
 }
 
-trait ScallopAuthStore {
-    fn get(key: &[u8; 32]) -> Option<&([u8; 48], [u8; 48], [u8; 48])>;
-    fn set(key: [u8; 32], pcrs: ([u8; 48], [u8; 48], [u8; 48]));
+pub trait ScallopAuthStore {
+    fn contains(&self, key: &[u8; 32]) -> bool;
+    fn get(&self, key: &[u8; 32]) -> Option<&([u8; 48], [u8; 48], [u8; 48])>;
+    fn set(&mut self, key: [u8; 32], pcrs: ([u8; 48], [u8; 48], [u8; 48]));
+    fn verify(
+        &mut self,
+        attestation: &[u8],
+        key: &[u8; 32],
+    ) -> Option<([u8; 48], [u8; 48], [u8; 48])>;
 }
 
 pub struct ScallopStream<Stream: AsyncWrite + AsyncRead + Unpin> {
