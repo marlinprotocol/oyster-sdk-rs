@@ -310,6 +310,21 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
 
     //---- <- e, ee, se, s, es end ----//
 
+    // check if auth is possible
+    if should_send_auth && auther.is_none() {
+        // auth requested and no auther available
+        // error out
+        return Err(ScallopError::ProtocolError(
+            "auth requested but no auther available".into(),
+        ));
+    }
+
+    // safe to unwrap since IX should have key by now
+    let remote_static: [u8; 32] = noise.get_remote_static().unwrap().try_into().unwrap();
+
+    let should_ask_auth =
+        auth_store.is_some() && !auth_store.as_mut().unwrap().contains(&remote_static);
+
     // handshake is done, switch to transport mode
     let noise = noise.into_transport_mode()?;
 
