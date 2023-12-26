@@ -326,7 +326,66 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
         auth_store.is_some() && !auth_store.as_mut().unwrap().contains(&remote_static);
 
     // handshake is done, switch to transport mode
-    let noise = noise.into_transport_mode()?;
+    let mut noise = noise.into_transport_mode()?;
+
+    //---- -> CLIENTFIN start ----//
+    //
+    // not part of the noise protocol, needed for optional attestations
+    //
+    // first two bytes length
+    // 0x00 for no auth request, 0x01 for auth request
+    // two bytes payload size
+    // payload
+
+    if should_send_auth {
+        // safe to unwrap since it has been checked above
+        let payload = auther.unwrap().new_auth().await;
+        // check if payload is not too big
+        if payload.len() > 60000 {
+            return Err(ScallopError::ProtocolError("auth payload too big".into()));
+        }
+
+        // new heap allocated buffers
+        let mut buf = vec![0u8; 65000].into_boxed_slice();
+        let mut noise_buf = vec![0u8; 65000].into_boxed_slice();
+
+        // assemble message for encryption
+        noise_buf[0] = if !should_ask_auth { 0 } else { 1 };
+        // safe to cast since range has been checked above
+        noise_buf[1..3].copy_from_slice(&(payload.len() as u16).to_be_bytes());
+        noise_buf[3..3 + payload.len()].copy_from_slice(&payload);
+
+        // set noise message
+        let noise_len = noise
+            .write_message(&noise_buf[0..payload.len() + 3 as usize], &mut buf[2..])
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+        // set length
+        (&mut buf[0..2]).copy_from_slice(&(noise_len as u16).to_be_bytes());
+
+        // send
+        stream.write_all(&buf[0..noise_len + 2]).await?;
+    } else {
+        let payload = [];
+        // assemble message for encryption
+        noise_buf[0] = if !should_ask_auth { 0 } else { 1 };
+        // safe to cast since range has been checked above
+        noise_buf[1..3].copy_from_slice(&(payload.len() as u16).to_be_bytes());
+        noise_buf[3..3 + payload.len()].copy_from_slice(&payload);
+
+        // set noise message
+        let noise_len = noise
+            .write_message(&noise_buf[0..payload.len() + 3 as usize], &mut buf[2..])
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+        // set length
+        (&mut buf[0..2]).copy_from_slice(&(noise_len as u16).to_be_bytes());
+
+        // send
+        stream.write_all(&buf[0..noise_len + 2]).await?;
+    }
+
+    //---- -> CLIENTFIN end ----//
 
     Ok(ScallopStream {
         noise,
