@@ -270,6 +270,7 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
 
     // send to the server
     stream.write_all(&buf[0..4 + size]).await?;
+    stream.flush().await?;
 
     //---- -> e, s end ----//
 
@@ -367,6 +368,7 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
 
         // send
         stream.write_all(&buf[0..noise_len + 2]).await?;
+        stream.flush().await?;
     } else {
         let payload = [];
         // assemble message for encryption
@@ -385,6 +387,7 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
 
         // send
         stream.write_all(&buf[0..noise_len + 2]).await?;
+        stream.flush().await?;
     }
 
     //---- -> CLIENTFIN end ----//
@@ -532,6 +535,7 @@ pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
 
     // send to the client
     stream.write_all(&buf[0..4 + size]).await?;
+    stream.flush().await?;
 
     //---- <- e, ee, se, s, es end ----//
 
@@ -638,6 +642,7 @@ pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
 
         // send
         stream.write_all(&buf[0..noise_len + 2]).await?;
+        stream.flush().await?;
     }
 
     //---- <- SERVERFIN end ----//
