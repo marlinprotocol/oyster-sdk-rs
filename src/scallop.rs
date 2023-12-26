@@ -203,6 +203,10 @@ impl<T: ScallopAuthStore> ScallopAuthStore for &mut T {
     }
 }
 
+pub trait ScallopAuther {
+    fn new_auth(&mut self) -> impl std::future::Future<Output = Box<[u8]>>;
+}
+
 pub struct ScallopStream<Stream: AsyncWrite + AsyncRead + Unpin> {
     noise: TransportState,
     stream: Stream,
