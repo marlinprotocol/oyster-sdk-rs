@@ -380,8 +380,21 @@ pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
     // negotiation length
     buf[0..2].copy_from_slice(&0u16.to_be_bytes());
 
+    // request auth if auth_store is available
+    // and static key is not found in the auth store
+    let remote_static: [u8; 32] = noise
+        .get_remote_static()
+        .expect("handshake should have static key by now")
+        .try_into()
+        .expect("expected 32 byte key");
+
+    let should_ask_auth =
+        auth_store.is_some() && !auth_store.as_mut().unwrap().contains(&remote_static);
+
+    let payload = &[0u8, 1u8, if !should_ask_auth { 0u8 } else { 1u8 }];
+
     // handshake message
-    let size = noise.write_message(&[], &mut buf[4..])?;
+    let size = noise.write_message(payload, &mut buf[4..])?;
 
     // handshake length
     buf[2..4].copy_from_slice(&(size as u16).to_be_bytes());
