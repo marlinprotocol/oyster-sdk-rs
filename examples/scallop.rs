@@ -52,11 +52,19 @@ impl ScallopAuther for Auther {
 
 async fn server_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> {
     let server = TcpListener::bind("127.0.0.1:21000").await?;
+    let mut auth_store = AuthStore::default();
+    let mut auther = Auther {};
 
     loop {
         let (stream, _) = server.accept().await?;
 
-        let mut stream = new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b(stream, &key).await?;
+        let mut stream = new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b(
+            stream,
+            &key,
+            Some(&mut auth_store),
+            Some(&mut auther),
+        )
+        .await?;
 
         println!("Client key: {:?}", stream.get_remote_static());
 
