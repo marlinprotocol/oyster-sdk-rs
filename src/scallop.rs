@@ -488,7 +488,64 @@ pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
     //---- <- e, ee, se, s, es end ----//
 
     // handshake is done, switch to transport mode
-    let noise = noise.into_transport_mode()?;
+    let mut noise = noise.into_transport_mode()?;
+
+    //---- -> CLIENTFIN start ----//
+    //
+    // not part of the noise protocol, needed for optional attestations
+    //
+    // first two bytes length
+    // 0x00 for no auth request, 0x01 for auth request
+    // two bytes payload size
+    // payload
+
+    // read noise message length
+    let len = stream.read_u16().await?;
+
+    // read handshake message
+    stream.read_exact(&mut buf[0..len as usize]).await?;
+
+    // handle handshake message
+    let len = noise.read_message(&buf[0..len as usize], &mut noise_buf)?;
+
+    // should have at least 3 size
+    if len < 3 {
+        return Err(ScallopError::ProtocolError(
+            "invalid CLIENTFIN length".into(),
+        ));
+    }
+
+    // payload size should match
+    if u16::from_be_bytes([noise_buf[1], noise_buf[2]]) as usize != len - 3 {
+        return Err(ScallopError::ProtocolError(
+            "invalid CLIENTFIN payload length".into(),
+        ));
+    }
+
+    // verify auth if we asked for it
+    if should_ask_auth {
+        // verify
+        let Some(pcrs) = auth_store
+            .as_mut()
+            .unwrap()
+            .verify(&noise_buf[3..len], &remote_static)
+        else {
+            return Err(ScallopError::ProtocolError("invalid attestation".into()));
+        };
+
+        auth_store.unwrap().set(remote_static.clone(), pcrs);
+    }
+
+    // auth request should be 0 or 1
+    if noise_buf[0] > 1 {
+        return Err(ScallopError::ProtocolError(
+            "invalid auth request in third payload".into(),
+        ));
+    }
+
+    let should_send_auth = noise_buf[0] == 1;
+
+    //---- -> CLIENTFIN end ----//
 
     Ok(ScallopStream {
         noise,
