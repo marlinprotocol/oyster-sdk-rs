@@ -556,6 +556,44 @@ pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
         ));
     }
 
+    //---- <- SERVERFIN start ----//
+    //
+    // not part of the noise protocol, needed for optional attestations
+    //
+    // first two bytes length
+    // two bytes payload size
+    // payload
+
+    if should_send_auth {
+        // safe to unwrap since it has been checked above
+        let payload = auther.unwrap().new_auth().await;
+        // check if payload is not too big
+        if payload.len() > 60000 {
+            return Err(ScallopError::ProtocolError("auth payload too big".into()));
+        }
+
+        // new heap allocated buffers
+        let mut buf = vec![0u8; 65000].into_boxed_slice();
+        let mut noise_buf = vec![0u8; 65000].into_boxed_slice();
+
+        // safe to cast since range has been checked above
+        noise_buf[0..2].copy_from_slice(&(payload.len() as u16).to_be_bytes());
+        noise_buf[2..2 + payload.len()].copy_from_slice(&payload);
+
+        // set noise message
+        let noise_len = noise
+            .write_message(&noise_buf[0..payload.len() + 2 as usize], &mut buf[2..])
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+        // set length
+        (&mut buf[0..2]).copy_from_slice(&(noise_len as u16).to_be_bytes());
+
+        // send
+        stream.write_all(&buf[0..noise_len + 2]).await?;
+    }
+
+    //---- <- SERVERFIN end ----//
+
     Ok(ScallopStream {
         noise,
         stream,
