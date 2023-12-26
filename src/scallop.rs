@@ -747,7 +747,7 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncWrite for ScallopStream<Base> {
         // flush existing data first
         std::task::ready!(self.as_mut().poll_flush(cx))?;
 
-        let stream = self.get_mut();
+        let mut stream = self.as_mut();
 
         // construct new buf
         // up to 64000 bytes at once
