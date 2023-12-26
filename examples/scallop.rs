@@ -42,6 +42,14 @@ impl ScallopAuthStore for AuthStore {
     }
 }
 
+struct Auther {}
+
+impl ScallopAuther for Auther {
+    async fn new_auth(&mut self) -> Box<[u8]> {
+        b"good auth".to_owned().into()
+    }
+}
+
 async fn server_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> {
     let server = TcpListener::bind("127.0.0.1:21000").await?;
 
