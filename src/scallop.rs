@@ -387,6 +387,52 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
 
     //---- -> CLIENTFIN end ----//
 
+    //---- <- SERVERFIN start ----//
+    //
+    // not part of the noise protocol, needed for optional attestations
+    //
+    // first two bytes length
+    // two bytes payload size
+    // payload
+
+    if should_ask_auth {
+        // read noise message length
+        let len = stream.read_u16().await?;
+
+        // read handshake message
+        stream.read_exact(&mut buf[0..len as usize]).await?;
+
+        // handle handshake message
+        let len = noise.read_message(&buf[0..len as usize], &mut noise_buf)?;
+
+        // should have at least 2 size
+        if len < 2 {
+            return Err(ScallopError::ProtocolError(
+                "invalid SERVERFIN length".into(),
+            ));
+        }
+
+        // payload size should match
+        if u16::from_be_bytes([noise_buf[0], noise_buf[1]]) as usize != len - 2 {
+            return Err(ScallopError::ProtocolError(
+                "invalid SERVERFIN payload length".into(),
+            ));
+        }
+
+        // verify
+        let Some(pcrs) = auth_store
+            .as_mut()
+            .unwrap()
+            .verify(&noise_buf[2..len], &remote_static)
+        else {
+            return Err(ScallopError::ProtocolError("invalid attestation".into()));
+        };
+
+        auth_store.unwrap().set(remote_static.clone(), pcrs);
+    }
+
+    //---- <- SERVERFIN end ----//
+
     Ok(ScallopStream {
         noise,
         stream,
