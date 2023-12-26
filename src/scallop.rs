@@ -702,7 +702,7 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncWrite for ScallopStream<Base> {
         let stream = self.get_mut();
 
         // construct new buf
-        // up to 16000 bytes at once
+        // up to 64000 bytes at once
         let len = std::cmp::min(buf.len(), 64000) as u16;
         let mut new_buf = vec![0u8; len as usize + 1000].into_boxed_slice();
 
