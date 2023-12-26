@@ -207,6 +207,12 @@ pub trait ScallopAuther {
     fn new_auth(&mut self) -> impl std::future::Future<Output = Box<[u8]>>;
 }
 
+impl<T: ScallopAuther> ScallopAuther for &mut T {
+    async fn new_auth(&mut self) -> Box<[u8]> {
+        (**self).new_auth().await
+    }
+}
+
 pub struct ScallopStream<Stream: AsyncWrite + AsyncRead + Unpin> {
     noise: TransportState,
     stream: Stream,
