@@ -148,6 +148,8 @@
 // - (desirable?) 0RTT
 //   - main concern is replay attacks
 
+// TODO: vectored reads/writes
+
 use snow::{Builder, TransportState};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 
