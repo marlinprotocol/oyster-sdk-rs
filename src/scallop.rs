@@ -236,6 +236,10 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
 >(
     mut stream: Base,
     secret: &[u8; 32],
+    // will not auth remote if None
+    mut auth_store: Option<impl ScallopAuthStore>,
+    // will not respond to auth requests if None
+    auther: Option<impl ScallopAuther>,
 ) -> Result<ScallopStream<Base>, ScallopError> {
     let mut buf = [0u8; 1024];
     let mut noise_buf = [0u8; 1024];
@@ -321,6 +325,10 @@ pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
 >(
     mut stream: Base,
     secret: &[u8; 32],
+    // will not auth remote if None
+    mut auth_store: Option<impl ScallopAuthStore>,
+    // will not respond to auth requests if None
+    auther: Option<impl ScallopAuther>,
 ) -> Result<ScallopStream<Base>, ScallopError> {
     let mut buf = [0u8; 1024];
     let mut noise_buf = [0u8; 1024];
