@@ -181,6 +181,28 @@ pub trait ScallopAuthStore {
     ) -> Option<([u8; 48], [u8; 48], [u8; 48])>;
 }
 
+impl<T: ScallopAuthStore> ScallopAuthStore for &mut T {
+    fn contains(&self, key: &[u8; 32]) -> bool {
+        (**self).contains(key)
+    }
+
+    fn get(&self, key: &[u8; 32]) -> Option<&([u8; 48], [u8; 48], [u8; 48])> {
+        (**self).get(key)
+    }
+
+    fn set(&mut self, key: [u8; 32], pcrs: ([u8; 48], [u8; 48], [u8; 48])) {
+        (**self).set(key, pcrs)
+    }
+
+    fn verify(
+        &mut self,
+        attestation: &[u8],
+        key: &[u8; 32],
+    ) -> Option<([u8; 48], [u8; 48], [u8; 48])> {
+        (**self).verify(attestation, key)
+    }
+}
+
 pub struct ScallopStream<Stream: AsyncWrite + AsyncRead + Unpin> {
     noise: TransportState,
     stream: Stream,
