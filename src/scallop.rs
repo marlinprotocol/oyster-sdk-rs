@@ -547,6 +547,15 @@ pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
 
     //---- -> CLIENTFIN end ----//
 
+    // check if auth is possible
+    if should_send_auth && auther.is_none() {
+        // auth requested and no auther available
+        // error out
+        return Err(ScallopError::ProtocolError(
+            "auth requested but no auther available".into(),
+        ));
+    }
+
     Ok(ScallopStream {
         noise,
         stream,
