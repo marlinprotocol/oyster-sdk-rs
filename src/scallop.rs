@@ -292,12 +292,21 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
     // handle handshake message
     let len = noise.read_message(&buf[0..len as usize], &mut noise_buf)?;
 
-    // handshake payload should be empty
-    if len != 0 {
+    // handshake payload should contain auth request
+    if len != 3 || noise_buf[0] != 0 || noise_buf[1] != 1 {
         return Err(ScallopError::ProtocolError(
-            "non zero second handshake payload".into(),
+            "invalid second payload length".into(),
         ));
     }
+
+    // auth request should be 0 or 1
+    if noise_buf[2] > 1 {
+        return Err(ScallopError::ProtocolError(
+            "invalid auth request in second payload".into(),
+        ));
+    }
+
+    let should_send_auth = noise_buf[2] == 1;
 
     //---- <- e, ee, se, s, es end ----//
 
