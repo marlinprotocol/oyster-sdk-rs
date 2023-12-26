@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::error::Error;
 use std::time::Duration;
 
@@ -9,6 +10,37 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::time::sleep;
 
 pub use oyster::scallop::*;
+
+#[derive(Default)]
+struct AuthStore {
+    store: HashMap<[u8; 32], ([u8; 48], [u8; 48], [u8; 48])>,
+}
+
+impl ScallopAuthStore for AuthStore {
+    fn contains(&self, key: &[u8; 32]) -> bool {
+        self.store.contains_key(key)
+    }
+
+    fn get(&self, key: &[u8; 32]) -> Option<&([u8; 48], [u8; 48], [u8; 48])> {
+        self.store.get(key)
+    }
+
+    fn set(&mut self, key: [u8; 32], pcrs: ([u8; 48], [u8; 48], [u8; 48])) {
+        self.store.insert(key, pcrs);
+    }
+
+    fn verify(
+        &mut self,
+        attestation: &[u8],
+        _key: &[u8; 32],
+    ) -> Option<([u8; 48], [u8; 48], [u8; 48])> {
+        if attestation == b"good auth" {
+            Some(([1u8; 48], [2u8; 48], [3u8; 48]))
+        } else {
+            None
+        }
+    }
+}
 
 async fn server_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> {
     let server = TcpListener::bind("127.0.0.1:21000").await?;
