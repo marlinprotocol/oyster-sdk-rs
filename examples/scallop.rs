@@ -84,10 +84,19 @@ async fn server_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> 
 }
 
 async fn client_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let mut auth_store = AuthStore::default();
+    let mut auther = Auther {};
+
     loop {
         let stream = TcpStream::connect("127.0.0.1:21000").await?;
 
-        let mut stream = new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b(stream, &key).await?;
+        let mut stream = new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b(
+            stream,
+            &key,
+            Some(&mut auth_store),
+            Some(&mut auther),
+        )
+        .await?;
 
         println!("Server key: {:?}", stream.get_remote_static());
 
