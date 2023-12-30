@@ -22,7 +22,7 @@
 // Bonuses:
 // - Authentication refresh on expiry
 //   - Client can request a new attestation in the first message
-//   - Server can send the payload in the second message
+//   - Server can send the attestation in the second message
 //
 // User story 2 - HTTP query against unknown server:
 //
