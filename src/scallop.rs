@@ -232,6 +232,11 @@ pub struct ScallopStream<Stream: AsyncWrite + AsyncRead + Unpin> {
     write_end: usize,
 }
 
+trait Noiser {
+    fn read_message(&mut self, payload: &[u8], message: &mut [u8]) -> Result<usize, snow::Error>;
+    fn write_message(&mut self, payload: &[u8], message: &mut [u8]) -> Result<usize, snow::Error>;
+}
+
 #[allow(non_snake_case)]
 pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
     Base: AsyncWrite + AsyncRead + Unpin,
