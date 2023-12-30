@@ -220,7 +220,7 @@ pub struct ScallopStream<Stream: AsyncWrite + AsyncRead + Unpin> {
     stream: Stream,
 
     // read buffer
-    buf: Box<[u8]>,
+    rbuf: Box<[u8]>,
     pending: usize,
     mode: ReadMode,
     read_end: usize,
@@ -492,7 +492,7 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
         noise,
         stream,
         // initialize with 2 sized buffer to read length
-        buf: vec![0u8; 2].into_boxed_slice(),
+        rbuf: vec![0u8; 2].into_boxed_slice(),
         pending: 2,
         mode: ReadMode::Length,
         read_start: 0,
@@ -680,7 +680,7 @@ pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
         noise,
         stream,
         // initialize with 2 sized buffer to read length
-        buf: vec![0u8; 2].into_boxed_slice(),
+        rbuf: vec![0u8; 2].into_boxed_slice(),
         pending: 2,
         mode: ReadMode::Length,
         read_start: 0,
@@ -713,8 +713,8 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncRead for ScallopStream<Base> {
                 let base = std::pin::pin!(&mut stream.stream);
 
                 // do not have enough data, try to read more
-                let len = stream.buf.len();
-                let mut buf = ReadBuf::new(&mut stream.buf[(len - stream.pending)..]);
+                let len = stream.rbuf.len();
+                let mut buf = ReadBuf::new(&mut stream.rbuf[(len - stream.pending)..]);
                 std::task::ready!(base.poll_read(cx, &mut buf))?;
 
                 // check eof
@@ -730,19 +730,19 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncRead for ScallopStream<Base> {
                 // we have read the length
 
                 // parse length
-                let record_length = u16::from_be_bytes(stream.buf[0..2].try_into().unwrap());
+                let record_length = u16::from_be_bytes(stream.rbuf[0..2].try_into().unwrap());
 
                 // set up to read record
                 stream.pending = record_length.into();
                 stream.mode = ReadMode::Body;
-                stream.buf = vec![0u8; stream.pending].into_boxed_slice();
+                stream.rbuf = vec![0u8; stream.pending].into_boxed_slice();
             } else if stream.mode == ReadMode::Body {
                 // we have the data
 
                 // process as noise message
                 let len = stream
                     .noise
-                    .read_message(&stream.buf.clone(), &mut stream.buf)
+                    .read_message(&stream.rbuf.clone(), &mut stream.rbuf)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
                 // set up to send body upstream
@@ -755,12 +755,12 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncRead for ScallopStream<Base> {
                     let read_start = stream.read_start;
                     stream.read_start += buf.remaining();
                     let read_end = read_start + buf.remaining();
-                    buf.put_slice(&stream.buf[read_start..read_end]);
+                    buf.put_slice(&stream.rbuf[read_start..read_end]);
                 } else {
                     // can transmit full
-                    buf.put_slice(&stream.buf[stream.read_start..stream.read_end]);
+                    buf.put_slice(&stream.rbuf[stream.read_start..stream.read_end]);
 
-                    stream.buf = vec![0u8; 2].into_boxed_slice();
+                    stream.rbuf = vec![0u8; 2].into_boxed_slice();
                     stream.pending = 2;
                     stream.mode = ReadMode::Length;
                 }
