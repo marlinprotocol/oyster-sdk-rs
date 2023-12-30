@@ -105,17 +105,17 @@ async fn client_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> 
 
         sleep(Duration::from_secs(1)).await;
 
-        stream.write_all(b"Hello!").await?;
+        stream.write_all(b"I").await?;
         stream.flush().await?;
 
         sleep(Duration::from_secs(1)).await;
 
-        stream.write_all(b"Hello!").await?;
+        stream.write_all(b"am").await?;
         stream.flush().await?;
 
         sleep(Duration::from_secs(1)).await;
 
-        stream.write_all(b"Hello!").await?;
+        stream.write_all(b"scallop.").await?;
         stream.flush().await?;
 
         sleep(Duration::from_secs(1)).await;
