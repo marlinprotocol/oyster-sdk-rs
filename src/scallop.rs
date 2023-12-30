@@ -830,10 +830,22 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncWrite for ScallopStream<Base> {
 
     // IMPORTANT: Return Pending only as a direct result of base returning Pending
     // Ensures wakers are set up correctly
+    //
+    // Shutdown is supposed to be graceful
+    //
+    // From the tokio docs:
+    // Invocation of a shutdown implies an invocation of flush.
+    // Once this method returns Ready it implies that a flush successfully happened
+    // before the shutdown happened. That is, callers don’t need to call flush before
+    // calling shutdown. They can rely that by calling shutdown any pending buffered
+    // data will be written out.
     fn poll_shutdown(
-        self: std::pin::Pin<&mut Self>,
+        mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), std::io::Error>> {
+        // flush data for graceful shutdowns
+        std::task::ready!(self.as_mut().poll_flush(cx))?;
+
         let stream = self.get_mut();
         let base = std::pin::pin!(&mut stream.stream);
 
