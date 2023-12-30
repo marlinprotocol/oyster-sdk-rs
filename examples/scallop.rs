@@ -131,8 +131,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut pk = [0u8; 32];
     let mut sk = [0u8; 32];
     unsafe { crypto_sign_keypair(sign_pk.as_mut_ptr(), sign_sk.as_mut_ptr()) };
-    unsafe { crypto_sign_ed25519_pk_to_curve25519(pk.as_mut_ptr(), sign_pk.as_mut_ptr()) };
-    unsafe { crypto_sign_ed25519_sk_to_curve25519(sk.as_mut_ptr(), sign_sk.as_mut_ptr()) };
+    unsafe { crypto_sign_ed25519_pk_to_curve25519(pk.as_mut_ptr(), sign_pk.as_ptr()) };
+    unsafe { crypto_sign_ed25519_sk_to_curve25519(sk.as_mut_ptr(), sign_sk.as_ptr()) };
 
     tokio::spawn(server_task(sk));
 
