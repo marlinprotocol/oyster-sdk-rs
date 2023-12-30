@@ -794,7 +794,9 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncWrite for ScallopStream<Base> {
             stream.write_start += size;
         }
 
-        std::task::Poll::Ready(Ok(()))
+        // flush data after write since base could be buffered
+        let base = std::pin::pin!(&mut stream.stream);
+        base.poll_flush(cx)
     }
 
     // IMPORTANT: Return Pending only as a direct result of base returning Pending
