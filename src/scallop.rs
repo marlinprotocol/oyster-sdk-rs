@@ -393,6 +393,26 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
     // two bytes payload size
     // payload
 
+    async fn send_CLIENTFIN(
+        noise: &mut impl Noiser,
+        stream: &mut (impl AsyncWrite + Unpin),
+        buf: &mut [u8],
+        noise_buf: &mut [u8],
+        payload: &[u8],
+        should_ask_auth: bool,
+    ) -> Result<(), ScallopError> {
+        // assemble message for encryption
+        noise_buf[0] = if !should_ask_auth { 0 } else { 1 };
+        // safe to cast since range has been checked above
+        noise_buf[1..3].copy_from_slice(&(payload.len() as u16).to_be_bytes());
+        noise_buf[3..3 + payload.len()].copy_from_slice(&payload);
+
+        // encode and send handshake message
+        noise_write(noise, stream, &noise_buf[0..payload.len() + 3], buf, 0).await?;
+
+        Ok(())
+    }
+
     if should_send_auth {
         // safe to unwrap since it has been checked above
         let payload = auther.unwrap().new_auth().await;
@@ -405,36 +425,23 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
         let mut buf = vec![0u8; 65000].into_boxed_slice();
         let mut noise_buf = vec![0u8; 65000].into_boxed_slice();
 
-        // assemble message for encryption
-        noise_buf[0] = if !should_ask_auth { 0 } else { 1 };
-        // safe to cast since range has been checked above
-        noise_buf[1..3].copy_from_slice(&(payload.len() as u16).to_be_bytes());
-        noise_buf[3..3 + payload.len()].copy_from_slice(&payload);
-
-        // encode and send handshake message
-        noise_write(
+        send_CLIENTFIN(
             &mut noise,
             &mut stream,
-            &noise_buf[0..payload.len() + 3],
             &mut buf,
-            0,
+            &mut noise_buf,
+            &payload,
+            should_ask_auth,
         )
         .await?;
     } else {
-        let payload = [];
-        // assemble message for encryption
-        noise_buf[0] = if !should_ask_auth { 0 } else { 1 };
-        // safe to cast since range has been checked above
-        noise_buf[1..3].copy_from_slice(&(payload.len() as u16).to_be_bytes());
-        noise_buf[3..3 + payload.len()].copy_from_slice(&payload);
-
-        // encode and send handshake message
-        noise_write(
+        send_CLIENTFIN(
             &mut noise,
             &mut stream,
-            &noise_buf[0..payload.len() + 3],
             &mut buf,
-            0,
+            &mut noise_buf,
+            &[],
+            should_ask_auth,
         )
         .await?;
     }
