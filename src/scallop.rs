@@ -328,15 +328,8 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
 
     // first two bytes are already zero, skip writing negotiation payload
 
-    // handshake message
-    let size = noise.write_message(&[], &mut buf[4..])?;
-
-    // handshake length
-    buf[2..4].copy_from_slice(&(size as u16).to_be_bytes());
-
-    // send to the server
-    stream.write_all(&buf[0..4 + size]).await?;
-    stream.flush().await?;
+    // encode and send handshake message
+    noise_write(&mut noise, &mut stream, &[], &mut buf, 2).await?;
 
     //---- -> e, s end ----//
 
@@ -418,17 +411,15 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
         noise_buf[1..3].copy_from_slice(&(payload.len() as u16).to_be_bytes());
         noise_buf[3..3 + payload.len()].copy_from_slice(&payload);
 
-        // set noise message
-        let noise_len = noise
-            .write_message(&noise_buf[0..payload.len() + 3], &mut buf[2..])
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-
-        // set length
-        buf[0..2].copy_from_slice(&(noise_len as u16).to_be_bytes());
-
-        // send
-        stream.write_all(&buf[0..noise_len + 2]).await?;
-        stream.flush().await?;
+        // encode and send handshake message
+        noise_write(
+            &mut noise,
+            &mut stream,
+            &noise_buf[0..payload.len() + 3],
+            &mut buf,
+            0,
+        )
+        .await?;
     } else {
         let payload = [];
         // assemble message for encryption
@@ -437,17 +428,15 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
         noise_buf[1..3].copy_from_slice(&(payload.len() as u16).to_be_bytes());
         noise_buf[3..3 + payload.len()].copy_from_slice(&payload);
 
-        // set noise message
-        let noise_len = noise
-            .write_message(&noise_buf[0..payload.len() + 3], &mut buf[2..])
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-
-        // set length
-        buf[0..2].copy_from_slice(&(noise_len as u16).to_be_bytes());
-
-        // send
-        stream.write_all(&buf[0..noise_len + 2]).await?;
-        stream.flush().await?;
+        // encode and send handshake message
+        noise_write(
+            &mut noise,
+            &mut stream,
+            &noise_buf[0..payload.len() + 3],
+            &mut buf,
+            0,
+        )
+        .await?;
     }
 
     //---- -> CLIENTFIN end ----//
@@ -575,15 +564,8 @@ pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
 
     let payload = &[0u8, 1u8, if !should_ask_auth { 0u8 } else { 1u8 }];
 
-    // handshake message
-    let size = noise.write_message(payload, &mut buf[4..])?;
-
-    // handshake length
-    buf[2..4].copy_from_slice(&(size as u16).to_be_bytes());
-
-    // send to the client
-    stream.write_all(&buf[0..4 + size]).await?;
-    stream.flush().await?;
+    // encode and send handshake message
+    noise_write(&mut noise, &mut stream, payload, &mut buf, 2).await?;
 
     //---- <- e, ee, se, s, es end ----//
 
@@ -674,17 +656,15 @@ pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
         noise_buf[0..2].copy_from_slice(&(payload.len() as u16).to_be_bytes());
         noise_buf[2..2 + payload.len()].copy_from_slice(&payload);
 
-        // set noise message
-        let noise_len = noise
-            .write_message(&noise_buf[0..payload.len() + 2], &mut buf[2..])
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-
-        // set length
-        buf[0..2].copy_from_slice(&(noise_len as u16).to_be_bytes());
-
-        // send
-        stream.write_all(&buf[0..noise_len + 2]).await?;
-        stream.flush().await?;
+        // encode and send handshake message
+        noise_write(
+            &mut noise,
+            &mut stream,
+            &noise_buf[0..payload.len() + 2],
+            &mut buf,
+            0,
+        )
+        .await?;
     }
 
     //---- <- SERVERFIN end ----//
