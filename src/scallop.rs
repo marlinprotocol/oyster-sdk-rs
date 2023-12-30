@@ -275,6 +275,29 @@ async fn noise_read(
     Ok(len)
 }
 
+async fn noise_write(
+    noise: &mut impl Noiser,
+    stream: &mut (impl AsyncWrite + Unpin),
+    src: &[u8],
+    dst: &mut [u8],
+    // in case dst has data encoded already
+    dst_offset: usize,
+) -> Result<(), ScallopError> {
+    // set noise message
+    let len = noise
+        .write_message(src, &mut dst[dst_offset + 2..])
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+    // set length
+    dst[dst_offset..dst_offset + 2].copy_from_slice(&(len as u16).to_be_bytes());
+
+    // send
+    stream.write_all(&dst[0..dst_offset + len + 2]).await?;
+    stream.flush().await?;
+
+    Ok(())
+}
+
 #[allow(non_snake_case)]
 pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
     Base: AsyncWrite + AsyncRead + Unpin,
