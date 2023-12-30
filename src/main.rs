@@ -3,7 +3,6 @@ use oyster::{get_attestation_doc, verify};
 use std::error::Error;
 use std::fs::File;
 use std::io::Write;
-use tokio;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]

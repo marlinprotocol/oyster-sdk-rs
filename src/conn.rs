@@ -48,9 +48,9 @@ struct Hasher {
 
 impl Hasher {
     fn new() -> Hasher {
-        return Hasher {
+        Hasher {
             state: crypto_generichash_blake2b_state { opaque: [0; 384] },
-        };
+        }
     }
 
     fn init(&mut self) -> &mut Self {
@@ -186,10 +186,10 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> MolluskStream<Base> {
             let mut msg = [0u8; 70];
             msg[0] = 0;
             msg[1] = RecordType::ClientHello as u8;
-            (&mut msg[2..4]).write(&66u16.to_le_bytes())?;
-            (&mut msg[4..36]).write(&client_random)?;
-            (&mut msg[36..68]).write(&client_pubkey_eph)?;
-            (&mut msg[68..70]).write(&0u16.to_le_bytes())?;
+            (&mut msg[2..4]).write_all(&66u16.to_le_bytes())?;
+            (&mut msg[4..36]).write_all(&client_random)?;
+            (&mut msg[36..68]).write_all(&client_pubkey_eph)?;
+            (&mut msg[68..70]).write_all(&0u16.to_le_bytes())?;
 
             stream.base.write_all(&msg).await?;
             stream.base.flush().await?;
@@ -306,7 +306,7 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> MolluskStream<Base> {
             let mut msg = vec![0u8; 4 + record_length as usize].into_boxed_slice();
             msg[0] = version;
             msg[1] = record_type;
-            (&mut msg[2..4]).write(&record_length.to_le_bytes())?;
+            (&mut msg[2..4]).write_all(&record_length.to_le_bytes())?;
             stream.base.read_exact(&mut msg[4..]).await?;
 
             unsafe {
@@ -365,7 +365,7 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> MolluskStream<Base> {
             let mut msg = vec![0u8; 4 + record_length as usize].into_boxed_slice();
             msg[0] = version;
             msg[1] = record_type;
-            (&mut msg[2..4]).write(&record_length.to_le_bytes())?;
+            (&mut msg[2..4]).write_all(&record_length.to_le_bytes())?;
             stream.base.read_exact(&mut msg[4..]).await?;
 
             unsafe {
@@ -426,7 +426,7 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> MolluskStream<Base> {
             let mut msg = [0u8; 76];
             msg[0] = 0;
             msg[1] = RecordType::HandshakeFinish as u8;
-            (&mut msg[2..4]).write(&72u16.to_le_bytes())?;
+            (&mut msg[2..4]).write_all(&72u16.to_le_bytes())?;
             unsafe {
                 // cannot fail
                 randombytes_buf(msg.as_mut_ptr().add(4).cast(), 24);
@@ -588,12 +588,12 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> MolluskStream<Base> {
             let mut msg = [0u8; 70];
             msg[0] = 0;
             msg[1] = RecordType::ServerHello as u8;
-            (&mut msg[2..4]).write(&66u16.to_le_bytes())?;
+            (&mut msg[2..4]).write_all(&66u16.to_le_bytes())?;
             unsafe {
                 randombytes_buf(msg.as_mut_ptr().add(4).cast(), 32);
             }
-            (&mut msg[36..68]).write(&server_pubkey_eph)?;
-            (&mut msg[68..70]).write(&0u16.to_le_bytes())?;
+            (&mut msg[36..68]).write_all(&server_pubkey_eph)?;
+            (&mut msg[68..70]).write_all(&0u16.to_le_bytes())?;
 
             stream.base.write_all(&msg).await?;
             stream.base.flush().await?;
@@ -644,7 +644,7 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> MolluskStream<Base> {
             let mut msg = [0u8; 108];
             msg[0] = 0;
             msg[1] = RecordType::Auth as u8;
-            (&mut msg[2..4]).write(&104u16.to_le_bytes())?;
+            (&mut msg[2..4]).write_all(&104u16.to_le_bytes())?;
             unsafe {
                 // cannot fail
                 randombytes_buf(msg.as_mut_ptr().add(4).cast(), 24);
@@ -697,7 +697,7 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> MolluskStream<Base> {
             let mut msg = [0u8; 76];
             msg[0] = 0;
             msg[1] = RecordType::HandshakeFinish as u8;
-            (&mut msg[2..4]).write(&72u16.to_le_bytes())?;
+            (&mut msg[2..4]).write_all(&72u16.to_le_bytes())?;
             unsafe {
                 // cannot fail
                 randombytes_buf(msg.as_mut_ptr().add(4).cast(), 24);
@@ -759,7 +759,7 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> MolluskStream<Base> {
             let mut msg = vec![0u8; 4 + record_length as usize].into_boxed_slice();
             msg[0] = version;
             msg[1] = record_type;
-            (&mut msg[2..4]).write(&record_length.to_le_bytes())?;
+            (&mut msg[2..4]).write_all(&record_length.to_le_bytes())?;
             stream.base.read_exact(&mut msg[4..]).await?;
 
             unsafe {
@@ -868,7 +868,7 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncRead for MolluskStream<Base> {
                 std::task::ready!(base.poll_read(cx, &mut buf))?;
 
                 // check eof
-                if buf.filled().len() == 0 {
+                if buf.filled().is_empty() {
                     return std::task::Poll::Ready(Ok(()));
                 }
                 stream.pending -= buf.filled().len();
@@ -964,12 +964,12 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncWrite for MolluskStream<Base> {
 
         new_buf[0] = 0;
         new_buf[1] = RecordType::Data as u8;
-        (&mut new_buf[2..4]).write(&(len + 40).to_le_bytes())?;
+        (&mut new_buf[2..4]).write_all(&(len + 40).to_le_bytes())?;
         unsafe {
             // cannot fail
             randombytes_buf(new_buf.as_mut_ptr().add(4).cast(), 24);
         };
-        (&mut new_buf[28..(28 + len as usize)]).copy_from_slice(&buf[0..len as usize]);
+        new_buf[28..(28 + len as usize)].copy_from_slice(&buf[0..len as usize]);
 
         unsafe {
             // cannot fail
@@ -1022,6 +1022,6 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncWrite for MolluskStream<Base> {
         let stream = self.get_mut();
         let base = std::pin::pin!(&mut stream.base);
 
-        return base.poll_shutdown(cx);
+        base.poll_shutdown(cx)
     }
 }

@@ -360,11 +360,11 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
 
         // set noise message
         let noise_len = noise
-            .write_message(&noise_buf[0..payload.len() + 3 as usize], &mut buf[2..])
+            .write_message(&noise_buf[0..payload.len() + 3], &mut buf[2..])
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
         // set length
-        (&mut buf[0..2]).copy_from_slice(&(noise_len as u16).to_be_bytes());
+        buf[0..2].copy_from_slice(&(noise_len as u16).to_be_bytes());
 
         // send
         stream.write_all(&buf[0..noise_len + 2]).await?;
@@ -379,11 +379,11 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
 
         // set noise message
         let noise_len = noise
-            .write_message(&noise_buf[0..payload.len() + 3 as usize], &mut buf[2..])
+            .write_message(&noise_buf[0..payload.len() + 3], &mut buf[2..])
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
         // set length
-        (&mut buf[0..2]).copy_from_slice(&(noise_len as u16).to_be_bytes());
+        buf[0..2].copy_from_slice(&(noise_len as u16).to_be_bytes());
 
         // send
         stream.write_all(&buf[0..noise_len + 2]).await?;
@@ -433,7 +433,7 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
             return Err(ScallopError::ProtocolError("invalid attestation".into()));
         };
 
-        auth_store.unwrap().set(remote_static.clone(), pcrs);
+        auth_store.unwrap().set(remote_static, pcrs);
     }
 
     //---- <- SERVERFIN end ----//
@@ -585,7 +585,7 @@ pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
             return Err(ScallopError::ProtocolError("invalid attestation".into()));
         };
 
-        auth_store.unwrap().set(remote_static.clone(), pcrs);
+        auth_store.unwrap().set(remote_static, pcrs);
     }
 
     // auth request should be 0 or 1
@@ -634,11 +634,11 @@ pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
 
         // set noise message
         let noise_len = noise
-            .write_message(&noise_buf[0..payload.len() + 2 as usize], &mut buf[2..])
+            .write_message(&noise_buf[0..payload.len() + 2], &mut buf[2..])
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
         // set length
-        (&mut buf[0..2]).copy_from_slice(&(noise_len as u16).to_be_bytes());
+        buf[0..2].copy_from_slice(&(noise_len as u16).to_be_bytes());
 
         // send
         stream.write_all(&buf[0..noise_len + 2]).await?;
@@ -689,7 +689,7 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncRead for ScallopStream<Base> {
                 std::task::ready!(base.poll_read(cx, &mut buf))?;
 
                 // check eof
-                if buf.filled().len() == 0 {
+                if buf.filled().is_empty() {
                     return std::task::Poll::Ready(Ok(()));
                 }
                 stream.pending -= buf.filled().len();
@@ -766,7 +766,7 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncWrite for ScallopStream<Base> {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
         // set length
-        (&mut new_buf[0..2]).copy_from_slice(&(noise_len as u16).to_be_bytes());
+        new_buf[0..2].copy_from_slice(&(noise_len as u16).to_be_bytes());
 
         // queue up new buf
         stream.wbuf = new_buf;
@@ -808,6 +808,6 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncWrite for ScallopStream<Base> {
         let stream = self.get_mut();
         let base = std::pin::pin!(&mut stream.stream);
 
-        return base.poll_shutdown(cx);
+        base.poll_shutdown(cx)
     }
 }
