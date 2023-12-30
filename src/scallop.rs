@@ -247,6 +247,16 @@ impl Noiser for snow::HandshakeState {
     }
 }
 
+impl Noiser for snow::TransportState {
+    fn read_message(&mut self, payload: &[u8], message: &mut [u8]) -> Result<usize, snow::Error> {
+        snow::TransportState::read_message(self, payload, message)
+    }
+
+    fn write_message(&mut self, payload: &[u8], message: &mut [u8]) -> Result<usize, snow::Error> {
+        snow::TransportState::write_message(self, payload, message)
+    }
+}
+
 #[allow(non_snake_case)]
 pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
     Base: AsyncWrite + AsyncRead + Unpin,
