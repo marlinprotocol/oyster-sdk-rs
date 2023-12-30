@@ -802,6 +802,19 @@ impl<Base: AsyncWrite + AsyncRead + Unpin> AsyncWrite for ScallopStream<Base> {
         stream.write_start = 0;
         stream.write_end = noise_len + 2;
 
+        // TODO: Should we flush here so it does not need to be called in the common case?
+        // How do we implement this?
+        //
+        // Not sure how the semantics will play out though.
+        //
+        // Happy path looks great.
+        // We make a call to poll_flush, it returns Ready and we return Ready with length.
+        //
+        // But what if it returns Pending?
+        // If we return Pending, the caller will assume nothing was sent.
+        // If we return Ready, polL_flush has potentially set up wakers.
+        // What happens on repeated calls? Unsure if it is supposed to be idempotent.
+
         std::task::Poll::Ready(Ok(len as usize))
     }
 
