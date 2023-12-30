@@ -329,14 +329,8 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
         ));
     }
 
-    // read noise message length
-    let len = stream.read_u16().await?;
-
-    // read handshake message
-    stream.read_exact(&mut buf[0..len as usize]).await?;
-
-    // handle handshake message
-    let len = noise.read_message(&buf[0..len as usize], &mut noise_buf)?;
+    // read and handle handshake message
+    let len = noise_read(&mut noise, &mut stream, &mut buf, &mut noise_buf).await?;
 
     // handshake payload should contain auth request
     if len != 3 || noise_buf[0] != 0 || noise_buf[1] != 1 {
@@ -444,14 +438,8 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
     // payload
 
     if should_ask_auth {
-        // read noise message length
-        let len = stream.read_u16().await?;
-
-        // read handshake message
-        stream.read_exact(&mut buf[0..len as usize]).await?;
-
-        // handle handshake message
-        let len = noise.read_message(&buf[0..len as usize], &mut noise_buf)?;
+        // read and handle handshake message
+        let len = noise_read(&mut noise, &mut stream, &mut buf, &mut noise_buf).await?;
 
         // should have at least 2 size
         if len < 2 {
@@ -534,14 +522,8 @@ pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
         ));
     }
 
-    // read noise message length
-    let len = stream.read_u16().await?;
-
-    // read handshake message
-    stream.read_exact(&mut buf[0..len as usize]).await?;
-
-    // handle handshake message
-    let len = noise.read_message(&buf[0..len as usize], &mut noise_buf)?;
+    // read and handle handshake message
+    let len = noise_read(&mut noise, &mut stream, &mut buf, &mut noise_buf).await?;
 
     // handshake payload should be empty
     if len != 0 {
@@ -594,14 +576,8 @@ pub async fn new_server_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
     // two bytes payload size
     // payload
 
-    // read noise message length
-    let len = stream.read_u16().await?;
-
-    // read handshake message
-    stream.read_exact(&mut buf[0..len as usize]).await?;
-
-    // handle handshake message
-    let len = noise.read_message(&buf[0..len as usize], &mut noise_buf)?;
+    // read and handle handshake message
+    let len = noise_read(&mut noise, &mut stream, &mut buf, &mut noise_buf).await?;
 
     // should have at least 3 size
     if len < 3 {
