@@ -257,6 +257,24 @@ impl Noiser for snow::TransportState {
     }
 }
 
+async fn noise_read(
+    noise: &mut impl Noiser,
+    stream: &mut (impl AsyncRead + Unpin),
+    src: &mut [u8],
+    dst: &mut [u8],
+) -> Result<usize, ScallopError> {
+    // read noise message length
+    let len = stream.read_u16().await? as usize;
+
+    // read handshake message
+    stream.read_exact(&mut src[0..len]).await?;
+
+    // handle handshake message
+    let len = noise.read_message(&src[0..len], dst)?;
+
+    Ok(len)
+}
+
 #[allow(non_snake_case)]
 pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
     Base: AsyncWrite + AsyncRead + Unpin,
