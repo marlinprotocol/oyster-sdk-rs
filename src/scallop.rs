@@ -405,7 +405,7 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
         noise_buf[0] = if !should_ask_auth { 0 } else { 1 };
         // safe to cast since range has been checked above
         noise_buf[1..3].copy_from_slice(&(payload.len() as u16).to_be_bytes());
-        noise_buf[3..3 + payload.len()].copy_from_slice(&payload);
+        noise_buf[3..3 + payload.len()].copy_from_slice(payload);
 
         // encode and send handshake message
         noise_write(noise, stream, &noise_buf[0..payload.len() + 3], buf, 0).await?;
