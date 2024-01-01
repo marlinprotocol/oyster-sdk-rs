@@ -110,12 +110,12 @@ pub fn verify(
     for i in 0u8..3u8 {
         let pcr = pcrs_arr
             .remove(&i.into())
-            .ok_or(AttestationError::ParseFailed("pcr{i} not found".into()))?;
+            .ok_or(AttestationError::ParseFailed(format!("pcr{i} not found")))?;
         let pcr = (match pcr {
             Value::Bytes(b) => Ok(b),
-            _ => Err(AttestationError::ParseFailed(
-                "pcr{i} decode failure".into(),
-            )),
+            _ => Err(AttestationError::ParseFailed(format!(
+                "pcr{i} decode failure"
+            ))),
         })?;
         if hex::encode(pcr) != pcrs[i as usize] {
             return Err(AttestationError::VerifyFailed(format!("pcr{i}")));
@@ -258,9 +258,9 @@ pub fn decode_attestation(
             .ok_or(AttestationError::ParseFailed(format!("pcr{i} not found")))?;
         let pcr = (match pcr {
             Value::Bytes(b) => Ok(b),
-            _ => Err(AttestationError::ParseFailed(
-                "pcr{i} decode failure".into(),
-            )),
+            _ => Err(AttestationError::ParseFailed(format!(
+                "pcr{i} decode failure"
+            ))),
         })?;
         result.pcrs.push(hex::encode(pcr));
     }
