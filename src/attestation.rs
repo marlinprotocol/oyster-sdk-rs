@@ -1,12 +1,10 @@
 use aws_nitro_enclaves_cose::{crypto::Openssl, CoseSign1};
 use chrono::Utc;
-use hex;
 use hyper::{client::Client, Uri};
 use openssl::asn1::Asn1Time;
 use openssl::x509::{X509VerifyResult, X509};
 use serde::Deserialize;
 use serde_cbor::{self, value, value::Value};
-use serde_json;
 use std::collections::BTreeMap;
 
 #[derive(Debug)]
@@ -57,10 +55,9 @@ fn verify_cert_chain(
         let pubkey = certs[i + 1]
             .public_key()
             .map_err(|e| AttestationError::ParseFailed(format!("pubkey: {e}")))?;
-        if certs[i]
+        if !certs[i]
             .verify(&pubkey)
             .map_err(|e| AttestationError::ParseFailed(format!("signature: {e}")))?
-            == false
         {
             return Err(AttestationError::VerifyFailed("signature".into()));
         }
@@ -79,7 +76,7 @@ fn verify_cert_chain(
     if &root_cert
         != certs
             .last()
-            .ok_or(AttestationError::ParseFailed(format!("root")))?
+            .ok_or(AttestationError::ParseFailed("root".into()))?
     {
         return Err(AttestationError::VerifyFailed("root".into()));
     }
@@ -107,7 +104,7 @@ pub fn verify(
     // verify pcrs
     let pcrs_arr = attestation_doc
         .remove(&"pcrs".to_owned().into())
-        .ok_or(AttestationError::ParseFailed(format!("pcrs not found")))?;
+        .ok_or(AttestationError::ParseFailed("pcrs not found".into()))?;
     let mut pcrs_arr = value::from_value::<BTreeMap<Value, Value>>(pcrs_arr)
         .map_err(|e| AttestationError::ParseFailed(format!("pcrs: {e}")))?;
     for i in 0u8..3u8 {
@@ -116,12 +113,12 @@ pub fn verify(
             .ok_or(AttestationError::ParseFailed(format!("pcr{i} not found")))?;
         let pcr = (match pcr {
             Value::Bytes(b) => Ok(b),
-            _ => Err(AttestationError::ParseFailed(
-                "pcr{i} decode failure".into(),
-            )),
+            _ => Err(AttestationError::ParseFailed(format!(
+                "pcr{i} decode failure"
+            ))),
         })?;
         if hex::encode(pcr) != pcrs[i as usize] {
-            return Err(AttestationError::VerifyFailed(format!("pcr{i}").into()));
+            return Err(AttestationError::VerifyFailed(format!("pcr{i}")));
         }
     }
 
@@ -218,9 +215,9 @@ pub fn verify(
         )),
     })?;
 
-    Ok(public_key[0..32]
+    public_key[0..32]
         .try_into()
-        .map_err(|e| AttestationError::ParseFailed(format!("pubkey: {e}")))?)
+        .map_err(|e| AttestationError::ParseFailed(format!("pubkey: {e}")))
 }
 
 pub async fn get_attestation_doc(endpoint: Uri) -> Result<Vec<u8>, AttestationError> {
@@ -250,7 +247,7 @@ pub fn decode_attestation(
 
     let pcrs_arr = attestation_doc
         .remove(&"pcrs".to_owned().into())
-        .ok_or(AttestationError::ParseFailed(format!("pcrs not found")))?;
+        .ok_or(AttestationError::ParseFailed("pcrs not found".into()))?;
     let mut pcrs_arr = value::from_value::<BTreeMap<Value, Value>>(pcrs_arr)
         .map_err(|e| AttestationError::ParseFailed(format!("pcrs: {e}")))?;
 
@@ -261,9 +258,9 @@ pub fn decode_attestation(
             .ok_or(AttestationError::ParseFailed(format!("pcr{i} not found")))?;
         let pcr = (match pcr {
             Value::Bytes(b) => Ok(b),
-            _ => Err(AttestationError::ParseFailed(
-                "pcr{i} decode failure".into(),
-            )),
+            _ => Err(AttestationError::ParseFailed(format!(
+                "pcr{i} decode failure"
+            ))),
         })?;
         result.pcrs.push(hex::encode(pcr));
     }
