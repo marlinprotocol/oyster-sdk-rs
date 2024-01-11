@@ -153,7 +153,7 @@
 use snow::{Builder, TransportState};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ScallopError {
     #[error("failed to init builder")]
     InitFailed(#[source] snow::Error),
@@ -165,7 +165,7 @@ pub enum ScallopError {
     ProtocolError(String),
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 enum ReadMode {
     Length,
     Body,
@@ -215,6 +215,7 @@ impl<T: ScallopAuther> ScallopAuther for &mut T {
     }
 }
 
+#[derive(Debug)]
 pub struct ScallopStream<Stream: AsyncWrite + AsyncRead + Unpin> {
     noise: TransportState,
     stream: Stream,
