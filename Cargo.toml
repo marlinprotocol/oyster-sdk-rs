@@ -1,28 +1,29 @@
 [package]
 name = "oyster-sdk"
-version = "0.5.1"
+version = "0.6.0"
 edition = "2021"
 description = "Oyster SDK"
 license = "MIT"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-tokio = { version = "1", features = ["full"] }
-clap = { version = "4.0.26", features = ["derive"] }
-openssl = { version = "0.10", features = ["vendored"] }
 aws-nitro-enclaves-cose = "0.5.0"
-hyper = { version = "0.14.23", features = ["client", "http1", "http2", "tcp", "server"] }
-serde_cbor = "0.11.2"
-hex = "0.4.3"
-serde_json = "1.0"
-serde = "1.0.152"
 chrono = "0.4.23"
+clap = { version = "4.0.26", features = ["derive"] }
+hex = "0.4.3"
+hyper = { version = "0.14.23", features = ["client", "http1", "http2", "tcp"] }
 libsodium-sys-stable = { version = "1.19.27" }
-thiserror = "1.0.40"
-http = "0.2.9"
-tower = { version = "0.4.13", features = ["full"] }
+openssl = { version = "0.10", features = ["vendored"] }
+serde = "1.0.152"
+serde_cbor = "0.11.2"
+serde_json = "1.0"
 snow = "0.9.4"
+thiserror = "1.0.40"
+tokio = { version = "1", features = ["full"] }
+
+[dev-dependencies]
+http = "0.2.9"
+hyper = { version = "0.14.23", features = ["client", "http1", "http2", "tcp", "server"] }
+tower = { version = "0.4.13", features = ["full"] }
 
 [lib]
 name = "oyster"
