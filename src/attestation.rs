@@ -92,134 +92,29 @@ pub fn verify(
     min_mem: usize,
     max_age: usize,
 ) -> Result<[u8; 32], AttestationError> {
-    // parse attestation doc
-    let cosesign1 = CoseSign1::from_bytes(&attestation_doc_cbor)
-        .map_err(|e| AttestationError::ParseFailed(format!("cose: {e}")))?;
-    let payload = cosesign1
-        .get_payload::<Openssl>(None)
-        .map_err(|e| AttestationError::ParseFailed(format!("cose payload: {e}")))?;
-    let cbor = serde_cbor::from_slice::<Value>(&payload)
-        .map_err(|e| AttestationError::ParseFailed(format!("cbor: {e}")))?;
-    let mut attestation_doc = value::from_value::<BTreeMap<Value, Value>>(cbor)
-        .map_err(|e| AttestationError::ParseFailed(format!("doc: {e}")))?;
+    // verify attestation and decode fields
+    let decoded_data = verify_and_decode_attestation(attestation_doc_cbor)?;
 
-    // verify pcrs
-    let pcrs_arr = attestation_doc
-        .remove(&"pcrs".to_owned().into())
-        .ok_or(AttestationError::ParseFailed("pcrs not found".into()))?;
-    let mut pcrs_arr = value::from_value::<BTreeMap<Value, Value>>(pcrs_arr)
-        .map_err(|e| AttestationError::ParseFailed(format!("pcrs: {e}")))?;
-    for i in 0u8..3u8 {
-        let pcr = pcrs_arr
-            .remove(&i.into())
-            .ok_or(AttestationError::ParseFailed(format!("pcr{i} not found")))?;
-        let pcr = (match pcr {
-            Value::Bytes(b) => Ok(b),
-            _ => Err(AttestationError::ParseFailed(format!(
-                "pcr{i} decode failure"
-            ))),
-        })?;
-        if hex::encode(pcr) != pcrs[i as usize] {
+    for i in 0..3 {
+        if decoded_data.pcrs[i] != pcrs[i] {
             return Err(AttestationError::VerifyFailed(format!("pcr{i}")));
         }
     }
 
-    // verify attestation doc signature
-    let enclave_certificate = attestation_doc
-        .remove(&"certificate".to_owned().into())
-        .ok_or(AttestationError::ParseFailed(
-            "certificate key not found".to_owned(),
-        ))?;
-    let enclave_certificate = (match enclave_certificate {
-        Value::Bytes(b) => Ok(b),
-        _ => Err(AttestationError::ParseFailed(
-            "enclave certificate decode failure".to_owned(),
-        )),
-    })?;
-    let enclave_certificate = X509::from_der(&enclave_certificate)
-        .map_err(|e| AttestationError::ParseFailed(format!("der: {e}")))?;
-    let pub_key = enclave_certificate
-        .public_key()
-        .map_err(|e| AttestationError::ParseFailed(format!("pubkey: {e}")))?;
-    let verify_result = cosesign1
-        .verify_signature::<Openssl>(&pub_key)
-        .map_err(|e| AttestationError::ParseFailed(format!("signature: {e}")))?;
-
-    if !verify_result {
-        return Err(AttestationError::VerifyFailed("signature".into()));
-    }
-
-    // verify certificate chain
-    let cabundle = attestation_doc
-        .remove(&"cabundle".to_owned().into())
-        .ok_or(AttestationError::ParseFailed(
-            "cabundle key not found in attestation doc".to_owned(),
-        ))?;
-    let mut cabundle = (match cabundle {
-        Value::Array(b) => Ok(b),
-        _ => Err(AttestationError::ParseFailed(
-            "cabundle decode failure".to_owned(),
-        )),
-    })?;
-    cabundle.reverse();
-
-    let root_cert_pem = include_bytes!("./aws.cert").to_vec();
-    verify_cert_chain(enclave_certificate, cabundle, root_cert_pem)?;
-
-    // verify enclave size
-    let user_data = attestation_doc
-        .remove(&"user_data".to_owned().into())
-        .ok_or(AttestationError::ParseFailed(
-            "user data not found in attestation doc".to_owned(),
-        ))?;
-    let user_data = (match user_data {
-        Value::Bytes(b) => Ok(b),
-        _ => Err(AttestationError::ParseFailed(
-            "user data decode failure".into(),
-        )),
-    })?;
-    let size = serde_json::from_slice::<EnclaveConfig>(user_data.as_slice())
-        .map_err(|e| AttestationError::ParseFailed(format!("enclave config: {e}")))?;
-    if size.total_cpus < min_cpus {
+    if decoded_data.total_cpus < min_cpus {
         return Err(AttestationError::VerifyFailed("minimum cpus".into()));
     }
-    if size.total_memory < min_mem {
+    if decoded_data.total_memory < min_mem {
         return Err(AttestationError::VerifyFailed("minimum memory".into()));
     }
 
     // verify age
-    let timestamp = attestation_doc
-        .remove(&"timestamp".to_owned().into())
-        .ok_or(AttestationError::ParseFailed(
-            "timestamp not found in attestation doc".to_owned(),
-        ))?;
-    let timestamp = (match timestamp {
-        Value::Integer(b) => Ok(b),
-        _ => Err(AttestationError::ParseFailed(
-            "timestamp decode failure".to_owned(),
-        )),
-    })?;
     let now = Utc::now().timestamp_millis();
-    if (now as i128) - (max_age as i128) > timestamp {
+    if (now as usize) - max_age > decoded_data.timestamp {
         return Err(AttestationError::VerifyFailed("too old".into()));
     }
 
-    // return the enclave key
-    let public_key = attestation_doc
-        .remove(&"public_key".to_owned().into())
-        .ok_or(AttestationError::ParseFailed(
-            "public key not found in attestation doc".to_owned(),
-        ))?;
-    let public_key = (match public_key {
-        Value::Bytes(b) => Ok(b),
-        _ => Err(AttestationError::ParseFailed(
-            "public key decode failure".to_owned(),
-        )),
-    })?;
-
-    public_key[0..32]
-        .try_into()
-        .map_err(|e| AttestationError::ParseFailed(format!("pubkey: {e}")))
+    Ok(decoded_data.ed25519_public)
 }
 
 pub async fn get_attestation_doc(endpoint: Uri) -> Result<Vec<u8>, AttestationError> {
