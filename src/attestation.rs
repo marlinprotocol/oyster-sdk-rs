@@ -12,6 +12,8 @@ pub struct AttestationDecoded {
     pub pcrs: Vec<String>,
     pub total_memory: usize,
     pub total_cpus: usize,
+    pub timestamp: usize,
+    pub ed25519_public: [u8; 32],
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -233,7 +235,10 @@ pub fn decode_attestation(
         pcrs: Vec::new(),
         total_cpus: 0,
         total_memory: 0,
+        timestamp: 0,
+        ed25519_public: [0; 32],
     };
+
     // parse attestation doc
     let cosesign1 = CoseSign1::from_bytes(&attestation_doc)
         .map_err(|e| AttestationError::ParseFailed(format!("cose: {e}")))?;
@@ -251,7 +256,7 @@ pub fn decode_attestation(
     let mut pcrs_arr = value::from_value::<BTreeMap<Value, Value>>(pcrs_arr)
         .map_err(|e| AttestationError::ParseFailed(format!("pcrs: {e}")))?;
 
-    //parse pcrs
+    // parse pcrs
     for i in 0u8..3u8 {
         let pcr = pcrs_arr
             .remove(&i.into())
@@ -281,6 +286,40 @@ pub fn decode_attestation(
         .map_err(|e| AttestationError::ParseFailed(format!("enclave config: {e}")))?;
     result.total_cpus = size.total_cpus;
     result.total_memory = size.total_memory;
+
+    // parse timestamp
+    let timestamp = attestation_doc
+        .remove(&"timestamp".to_owned().into())
+        .ok_or(AttestationError::ParseFailed(
+            "timestamp not found in attestation doc".to_owned(),
+        ))?;
+    let timestamp = (match timestamp {
+        Value::Integer(b) => Ok(b),
+        _ => Err(AttestationError::ParseFailed(
+            "timestamp decode failure".to_owned(),
+        )),
+    })?;
+    result.timestamp = timestamp
+        .try_into()
+        .map_err(|e| AttestationError::ParseFailed(format!("timestamp: {e}")))?;
+
+    // parse the enclave key
+    let public_key = attestation_doc
+        .remove(&"public_key".to_owned().into())
+        .ok_or(AttestationError::ParseFailed(
+            "public key not found in attestation doc".to_owned(),
+        ))?;
+    let public_key = (match public_key {
+        Value::Bytes(b) => Ok(b),
+        _ => Err(AttestationError::ParseFailed(
+            "public key decode failure".to_owned(),
+        )),
+    })?;
+
+    result.ed25519_public = public_key
+        .as_slice()
+        .try_into()
+        .map_err(|e| AttestationError::ParseFailed(format!("pubkey: {e}")))?;
 
     Ok(result)
 }
