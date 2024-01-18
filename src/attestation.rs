@@ -252,19 +252,7 @@ pub fn decode_attestation(
     result.pcrs = parse_pcrs(&mut attestation_doc)?;
 
     // parse cpu and memory
-    let user_data = attestation_doc
-        .remove(&"user_data".to_owned().into())
-        .ok_or(AttestationError::ParseFailed(
-            "user data not found in attestation doc".to_owned(),
-        ))?;
-    let user_data = (match user_data {
-        Value::Bytes(b) => Ok(b),
-        _ => Err(AttestationError::ParseFailed(
-            "user data decode failure".into(),
-        )),
-    })?;
-    let size = serde_json::from_slice::<EnclaveConfig>(user_data.as_slice())
-        .map_err(|e| AttestationError::ParseFailed(format!("enclave config: {e}")))?;
+    let size = parse_cpu_mem(&mut attestation_doc)?;
     result.total_cpus = size.total_cpus;
     result.total_memory = size.total_memory;
 
@@ -326,19 +314,7 @@ pub fn verify_and_decode_attestation(
     verify_signature_and_cert_chain(&mut attestation_doc, &cosesign1)?;
 
     // parse cpu and memory
-    let user_data = attestation_doc
-        .remove(&"user_data".to_owned().into())
-        .ok_or(AttestationError::ParseFailed(
-            "user data not found in attestation doc".to_owned(),
-        ))?;
-    let user_data = (match user_data {
-        Value::Bytes(b) => Ok(b),
-        _ => Err(AttestationError::ParseFailed(
-            "user data decode failure".into(),
-        )),
-    })?;
-    let size = serde_json::from_slice::<EnclaveConfig>(user_data.as_slice())
-        .map_err(|e| AttestationError::ParseFailed(format!("enclave config: {e}")))?;
+    let size = parse_cpu_mem(&mut attestation_doc)?;
     result.total_cpus = size.total_cpus;
     result.total_memory = size.total_memory;
 
