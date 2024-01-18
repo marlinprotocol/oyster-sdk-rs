@@ -304,22 +304,7 @@ pub fn decode_attestation(
     result.timestamp = parse_timestamp(&mut attestation_doc)?;
 
     // parse the enclave key
-    let public_key = attestation_doc
-        .remove(&"public_key".to_owned().into())
-        .ok_or(AttestationError::ParseFailed(
-            "public key not found in attestation doc".to_owned(),
-        ))?;
-    let public_key = (match public_key {
-        Value::Bytes(b) => Ok(b),
-        _ => Err(AttestationError::ParseFailed(
-            "public key decode failure".to_owned(),
-        )),
-    })?;
-
-    result.ed25519_public = public_key
-        .as_slice()
-        .try_into()
-        .map_err(|e| AttestationError::ParseFailed(format!("pubkey: {e}")))?;
+    result.ed25519_public = parse_enclave_key(&mut attestation_doc)?;
 
     Ok(result)
 }
@@ -353,22 +338,7 @@ pub fn verify_and_decode_attestation(
     result.timestamp = parse_timestamp(&mut attestation_doc)?;
 
     // return the enclave key
-    let public_key = attestation_doc
-        .remove(&"public_key".to_owned().into())
-        .ok_or(AttestationError::ParseFailed(
-            "public key not found in attestation doc".to_owned(),
-        ))?;
-    let public_key = (match public_key {
-        Value::Bytes(b) => Ok(b),
-        _ => Err(AttestationError::ParseFailed(
-            "public key decode failure".to_owned(),
-        )),
-    })?;
-
-    result.ed25519_public = public_key
-        .as_slice()
-        .try_into()
-        .map_err(|e| AttestationError::ParseFailed(format!("pubkey: {e}")))?;
+    result.ed25519_public = parse_enclave_key(&mut attestation_doc)?;
 
     Ok(result)
 }
