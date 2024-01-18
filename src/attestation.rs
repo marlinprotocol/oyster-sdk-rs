@@ -278,20 +278,7 @@ pub fn decode_attestation(
     result.total_memory = size.total_memory;
 
     // parse timestamp
-    let timestamp = attestation_doc
-        .remove(&"timestamp".to_owned().into())
-        .ok_or(AttestationError::ParseFailed(
-            "timestamp not found in attestation doc".to_owned(),
-        ))?;
-    let timestamp = (match timestamp {
-        Value::Integer(b) => Ok(b),
-        _ => Err(AttestationError::ParseFailed(
-            "timestamp decode failure".to_owned(),
-        )),
-    })?;
-    result.timestamp = timestamp
-        .try_into()
-        .map_err(|e| AttestationError::ParseFailed(format!("timestamp: {e}")))?;
+    result.timestamp = parse_timestamp(&mut attestation_doc)?;
 
     // parse the enclave key
     let public_key = attestation_doc
@@ -340,20 +327,7 @@ pub fn verify_and_decode_attestation(
     result.total_memory = size.total_memory;
 
     // parse timestamp
-    let timestamp = attestation_doc
-        .remove(&"timestamp".to_owned().into())
-        .ok_or(AttestationError::ParseFailed(
-            "timestamp not found in attestation doc".to_owned(),
-        ))?;
-    let timestamp = (match timestamp {
-        Value::Integer(b) => Ok(b),
-        _ => Err(AttestationError::ParseFailed(
-            "timestamp decode failure".to_owned(),
-        )),
-    })?;
-    result.timestamp = timestamp
-        .try_into()
-        .map_err(|e| AttestationError::ParseFailed(format!("timestamp: {e}")))?;
+    result.timestamp = parse_timestamp(&mut attestation_doc)?;
 
     // return the enclave key
     let public_key = attestation_doc
