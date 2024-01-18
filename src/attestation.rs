@@ -176,6 +176,26 @@ fn verify_signature_and_cert_chain(
     Ok(())
 }
 
+fn parse_cpu_mem(
+    attestation_doc: &mut BTreeMap<Value, Value>,
+) -> Result<EnclaveConfig, AttestationError> {
+    let user_data = attestation_doc
+        .remove(&"user_data".to_owned().into())
+        .ok_or(AttestationError::ParseFailed(
+            "user data not found in attestation doc".to_owned(),
+        ))?;
+    let user_data = (match user_data {
+        Value::Bytes(b) => Ok(b),
+        _ => Err(AttestationError::ParseFailed(
+            "user data decode failure".into(),
+        )),
+    })?;
+    let size = serde_json::from_slice::<EnclaveConfig>(user_data.as_slice())
+        .map_err(|e| AttestationError::ParseFailed(format!("enclave config: {e}")))?;
+
+    Ok(size)
+}
+
 pub fn verify(
     attestation_doc_cbor: Vec<u8>,
     pcrs: Vec<String>,
