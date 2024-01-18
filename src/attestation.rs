@@ -179,25 +179,8 @@ pub fn decode_attestation(
     // parse attestation doc
     let (_, mut attestation_doc) = parse_attestation_doc(&attestation_doc)?;
 
-    let pcrs_arr = attestation_doc
-        .remove(&"pcrs".to_owned().into())
-        .ok_or(AttestationError::ParseFailed("pcrs not found".into()))?;
-    let mut pcrs_arr = value::from_value::<BTreeMap<Value, Value>>(pcrs_arr)
-        .map_err(|e| AttestationError::ParseFailed(format!("pcrs: {e}")))?;
-
     // parse pcrs
-    for i in 0u8..3u8 {
-        let pcr = pcrs_arr
-            .remove(&i.into())
-            .ok_or(AttestationError::ParseFailed(format!("pcr{i} not found")))?;
-        let pcr = (match pcr {
-            Value::Bytes(b) => Ok(b),
-            _ => Err(AttestationError::ParseFailed(format!(
-                "pcr{i} decode failure"
-            ))),
-        })?;
-        result.pcrs.push(hex::encode(pcr));
-    }
+    result.pcrs = parse_pcrs(&mut attestation_doc)?;
 
     // parse cpu and memory
     let user_data = attestation_doc
@@ -268,24 +251,7 @@ pub fn verify_and_decode_attestation(
     let (cosesign1, mut attestation_doc) = parse_attestation_doc(&attestation_doc)?;
 
     // parse pcrs
-    let pcrs_arr = attestation_doc
-        .remove(&"pcrs".to_owned().into())
-        .ok_or(AttestationError::ParseFailed("pcrs not found".into()))?;
-    let mut pcrs_arr = value::from_value::<BTreeMap<Value, Value>>(pcrs_arr)
-        .map_err(|e| AttestationError::ParseFailed(format!("pcrs: {e}")))?;
-
-    for i in 0u8..3u8 {
-        let pcr = pcrs_arr
-            .remove(&i.into())
-            .ok_or(AttestationError::ParseFailed(format!("pcr{i} not found")))?;
-        let pcr = (match pcr {
-            Value::Bytes(b) => Ok(b),
-            _ => Err(AttestationError::ParseFailed(format!(
-                "pcr{i} decode failure"
-            ))),
-        })?;
-        result.pcrs.push(hex::encode(pcr));
-    }
+    result.pcrs = parse_pcrs(&mut attestation_doc)?;
 
     // verify attestation doc signature
     let enclave_certificate = attestation_doc
