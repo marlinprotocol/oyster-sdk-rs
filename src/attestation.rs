@@ -85,6 +85,22 @@ fn verify_cert_chain(
     Ok(())
 }
 
+fn parse_attestation_doc(
+    attestation_doc: &[u8],
+) -> Result<(CoseSign1, BTreeMap<Value, Value>), AttestationError> {
+    let cosesign1 = CoseSign1::from_bytes(&attestation_doc)
+        .map_err(|e| AttestationError::ParseFailed(format!("cose: {e}")))?;
+    let payload = cosesign1
+        .get_payload::<Openssl>(None)
+        .map_err(|e| AttestationError::ParseFailed(format!("cose payload: {e}")))?;
+    let cbor = serde_cbor::from_slice::<Value>(&payload)
+        .map_err(|e| AttestationError::ParseFailed(format!("cbor: {e}")))?;
+    let attestation_doc = value::from_value::<BTreeMap<Value, Value>>(cbor)
+        .map_err(|e| AttestationError::ParseFailed(format!("doc: {e}")))?;
+
+    Ok((cosesign1, attestation_doc))
+}
+
 pub fn verify(
     attestation_doc_cbor: Vec<u8>,
     pcrs: Vec<String>,
