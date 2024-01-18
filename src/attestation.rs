@@ -151,15 +151,7 @@ pub fn decode_attestation(
     };
 
     // parse attestation doc
-    let cosesign1 = CoseSign1::from_bytes(&attestation_doc)
-        .map_err(|e| AttestationError::ParseFailed(format!("cose: {e}")))?;
-    let payload = cosesign1
-        .get_payload::<Openssl>(None)
-        .map_err(|e| AttestationError::ParseFailed(format!("cose payload: {e}")))?;
-    let cbor = serde_cbor::from_slice::<Value>(&payload)
-        .map_err(|e| AttestationError::ParseFailed(format!("cbor: {e}")))?;
-    let mut attestation_doc = value::from_value::<BTreeMap<Value, Value>>(cbor)
-        .map_err(|e| AttestationError::ParseFailed(format!("doc: {e}")))?;
+    let (_, mut attestation_doc) = parse_attestation_doc(&attestation_doc)?;
 
     let pcrs_arr = attestation_doc
         .remove(&"pcrs".to_owned().into())
@@ -247,15 +239,7 @@ pub fn verify_and_decode_attestation(
     };
 
     // parse attestation doc
-    let cosesign1 = CoseSign1::from_bytes(&attestation_doc)
-        .map_err(|e| AttestationError::ParseFailed(format!("cose: {e}")))?;
-    let payload = cosesign1
-        .get_payload::<Openssl>(None)
-        .map_err(|e| AttestationError::ParseFailed(format!("cose payload: {e}")))?;
-    let cbor = serde_cbor::from_slice::<Value>(&payload)
-        .map_err(|e| AttestationError::ParseFailed(format!("cbor: {e}")))?;
-    let mut attestation_doc = value::from_value::<BTreeMap<Value, Value>>(cbor)
-        .map_err(|e| AttestationError::ParseFailed(format!("doc: {e}")))?;
+    let (cosesign1, mut attestation_doc) = parse_attestation_doc(&attestation_doc)?;
 
     // parse pcrs
     let pcrs_arr = attestation_doc
