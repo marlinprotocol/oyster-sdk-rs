@@ -196,6 +196,27 @@ fn parse_cpu_mem(
     Ok(size)
 }
 
+fn parse_timestamp(
+    attestation_doc: &mut BTreeMap<Value, Value>,
+) -> Result<usize, AttestationError> {
+    let timestamp = attestation_doc
+        .remove(&"timestamp".to_owned().into())
+        .ok_or(AttestationError::ParseFailed(
+            "timestamp not found in attestation doc".to_owned(),
+        ))?;
+    let timestamp = (match timestamp {
+        Value::Integer(b) => Ok(b),
+        _ => Err(AttestationError::ParseFailed(
+            "timestamp decode failure".to_owned(),
+        )),
+    })?;
+    let timestamp = timestamp
+        .try_into()
+        .map_err(|e| AttestationError::ParseFailed(format!("timestamp: {e}")))?;
+
+    Ok(timestamp)
+}
+
 pub fn verify(
     attestation_doc_cbor: Vec<u8>,
     pcrs: Vec<String>,
