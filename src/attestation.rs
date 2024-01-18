@@ -101,6 +101,32 @@ fn parse_attestation_doc(
     Ok((cosesign1, attestation_doc))
 }
 
+fn parse_pcrs(
+    attestation_doc: &mut BTreeMap<Value, Value>,
+) -> Result<Vec<String>, AttestationError> {
+    let pcrs_arr = attestation_doc
+        .remove(&"pcrs".to_owned().into())
+        .ok_or(AttestationError::ParseFailed("pcrs not found".into()))?;
+    let mut pcrs_arr = value::from_value::<BTreeMap<Value, Value>>(pcrs_arr)
+        .map_err(|e| AttestationError::ParseFailed(format!("pcrs: {e}")))?;
+
+    let mut result = vec![];
+    for i in 0u8..3u8 {
+        let pcr = pcrs_arr
+            .remove(&i.into())
+            .ok_or(AttestationError::ParseFailed(format!("pcr{i} not found")))?;
+        let pcr = (match pcr {
+            Value::Bytes(b) => Ok(b),
+            _ => Err(AttestationError::ParseFailed(format!(
+                "pcr{i} decode failure"
+            ))),
+        })?;
+        result.push(hex::encode(pcr));
+    }
+
+    Ok(result)
+}
+
 pub fn verify(
     attestation_doc_cbor: Vec<u8>,
     pcrs: Vec<String>,
