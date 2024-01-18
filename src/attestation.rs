@@ -272,6 +272,39 @@ pub fn verify(
     Ok(decoded_data.ed25519_public)
 }
 
+pub fn verify_with_timestamp(
+    attestation_doc_cbor: Vec<u8>,
+    pcrs: Vec<String>,
+    min_cpus: usize,
+    min_mem: usize,
+    timestamp: usize,
+) -> Result<[u8; 32], AttestationError> {
+    // verify attestation and decode fields
+    let decoded_data = verify_and_decode_attestation(attestation_doc_cbor)?;
+
+    for i in 0..3 {
+        if decoded_data.pcrs[i] != pcrs[i] {
+            return Err(AttestationError::VerifyFailed(format!("pcr{i}")));
+        }
+    }
+
+    if decoded_data.total_cpus < min_cpus {
+        return Err(AttestationError::VerifyFailed("minimum cpus".into()));
+    }
+    if decoded_data.total_memory < min_mem {
+        return Err(AttestationError::VerifyFailed("minimum memory".into()));
+    }
+
+    // verify timestamp
+    if timestamp != decoded_data.timestamp {
+        return Err(AttestationError::VerifyFailed(
+            "timestamp does not match".into(),
+        ));
+    }
+
+    Ok(decoded_data.ed25519_public)
+}
+
 pub async fn get_attestation_doc(endpoint: Uri) -> Result<Vec<u8>, AttestationError> {
     let client = Client::new();
     let res = client.get(endpoint).await?;
