@@ -127,6 +127,55 @@ fn parse_pcrs(
     Ok(result)
 }
 
+fn verify_signature_and_cert_chain(
+    attestation_doc: &mut BTreeMap<Value, Value>,
+    cosesign1: &CoseSign1,
+) -> Result<(), AttestationError> {
+    // verify attestation doc signature
+    let enclave_certificate = attestation_doc
+        .remove(&"certificate".to_owned().into())
+        .ok_or(AttestationError::ParseFailed(
+            "certificate key not found".to_owned(),
+        ))?;
+    let enclave_certificate = (match enclave_certificate {
+        Value::Bytes(b) => Ok(b),
+        _ => Err(AttestationError::ParseFailed(
+            "enclave certificate decode failure".to_owned(),
+        )),
+    })?;
+    let enclave_certificate = X509::from_der(&enclave_certificate)
+        .map_err(|e| AttestationError::ParseFailed(format!("der: {e}")))?;
+    let pub_key = enclave_certificate
+        .public_key()
+        .map_err(|e| AttestationError::ParseFailed(format!("pubkey: {e}")))?;
+    let verify_result = cosesign1
+        .verify_signature::<Openssl>(&pub_key)
+        .map_err(|e| AttestationError::ParseFailed(format!("signature: {e}")))?;
+
+    if !verify_result {
+        return Err(AttestationError::VerifyFailed("signature".into()));
+    }
+
+    // verify certificate chain
+    let cabundle = attestation_doc
+        .remove(&"cabundle".to_owned().into())
+        .ok_or(AttestationError::ParseFailed(
+            "cabundle key not found in attestation doc".to_owned(),
+        ))?;
+    let mut cabundle = (match cabundle {
+        Value::Array(b) => Ok(b),
+        _ => Err(AttestationError::ParseFailed(
+            "cabundle decode failure".to_owned(),
+        )),
+    })?;
+    cabundle.reverse();
+
+    let root_cert_pem = include_bytes!("./aws.cert").to_vec();
+    verify_cert_chain(enclave_certificate, cabundle, root_cert_pem)?;
+
+    Ok(())
+}
+
 pub fn verify(
     attestation_doc_cbor: Vec<u8>,
     pcrs: Vec<String>,
