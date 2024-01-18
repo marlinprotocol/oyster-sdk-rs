@@ -217,6 +217,29 @@ fn parse_timestamp(
     Ok(timestamp)
 }
 
+fn parse_enclave_key(
+    attestation_doc: &mut BTreeMap<Value, Value>,
+) -> Result<[u8; 32], AttestationError> {
+    let public_key = attestation_doc
+        .remove(&"public_key".to_owned().into())
+        .ok_or(AttestationError::ParseFailed(
+            "public key not found in attestation doc".to_owned(),
+        ))?;
+    let public_key = (match public_key {
+        Value::Bytes(b) => Ok(b),
+        _ => Err(AttestationError::ParseFailed(
+            "public key decode failure".to_owned(),
+        )),
+    })?;
+
+    let ed25519_public = public_key
+        .as_slice()
+        .try_into()
+        .map_err(|e| AttestationError::ParseFailed(format!("pubkey: {e}")))?;
+
+    Ok(ed25519_public)
+}
+
 pub fn verify(
     attestation_doc_cbor: Vec<u8>,
     pcrs: Vec<String>,
