@@ -36,7 +36,11 @@ struct Cli {
 async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
-    let pcrs = vec![cli.pcr0, cli.pcr1, cli.pcr2];
+    let pcrs: [[u8; 48]; 3] = [
+        hex::decode(cli.pcr0)?.as_slice().try_into()?,
+        hex::decode(cli.pcr1)?.as_slice().try_into()?,
+        hex::decode(cli.pcr2)?.as_slice().try_into()?,
+    ];
     let attestation_doc = get_attestation_doc(cli.endpoint.parse()?).await?;
 
     let pub_key = verify(attestation_doc, pcrs, cli.max_age)?;
