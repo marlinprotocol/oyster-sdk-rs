@@ -6,24 +6,24 @@ description = "Oyster SDK"
 license = "MIT"
 
 [dependencies]
-aws-nitro-enclaves-cose = "0.5.0"
-chrono = "0.4.23"
-clap = { version = "4.0.26", features = ["derive"] }
+aws-nitro-enclaves-cose = "0.5.1"
+chrono = "0.4.35"
+clap = { version = "4.5.3", features = ["derive"] }
 hex = "0.4.3"
-hyper = { version = "0.14.23", features = ["client", "http1", "http2", "tcp"] }
-libsodium-sys-stable = { version = "1.19.27" }
+hyper = { version = "1.2.0", features = ["client", "http1", "http2"] }
+libsodium-sys-stable = { version = "1.20.5" }
 openssl = { version = "0.10", features = ["vendored"] }
 serde = "=1.0.152"
 serde_cbor = "0.11.2"
 serde_json = "1.0"
-snow = "0.9.4"
-thiserror = "1.0.40"
+snow = "0.9.6"
+thiserror = "1.0.58"
 tokio = { version = "1", features = ["full"] }
 
 [dev-dependencies]
 axum = "0.7.4"
-http = "0.2.9"
-hyper = { version = "0.14.23", features = ["client", "http1", "http2", "tcp", "server"] }
+http = "1.1.0"
+hyper = { version = "1.2.0", features = ["client", "http1", "http2", "server"] }
 tower = { version = "0.4.13", features = ["full"] }
 
 [lib]
