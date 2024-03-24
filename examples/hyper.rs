@@ -3,14 +3,19 @@ use std::error::Error;
 use std::time::Duration;
 
 use http::{Request, Response, StatusCode};
-use hyper::{server::conn::Http, service::service_fn, Body};
+use http_body_util::BodyExt;
+use http_body_util::Empty;
+use http_body_util::Full;
+use hyper::body::Bytes;
+use hyper::body::Incoming;
+use hyper::service::service_fn;
+use hyper_util::rt::TokioIo;
 use libsodium_sys::{
     crypto_sign_ed25519_pk_to_curve25519, crypto_sign_ed25519_sk_to_curve25519, crypto_sign_keypair,
 };
 use std::convert::Infallible;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::time::sleep;
-use tower::ServiceExt;
 
 pub use oyster::scallop::*;
 
@@ -53,9 +58,9 @@ impl ScallopAuther for Auther {
     }
 }
 
-async fn hello(_req: Request<Body>) -> Result<Response<Body>, Infallible> {
+async fn hello(_req: Request<Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
     println!("server: hello");
-    Ok(Response::new(Body::from("Hello World!")))
+    Ok(Response::new("Hello World!".into()))
 }
 
 async fn server_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -76,10 +81,11 @@ async fn server_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> 
 
         println!("Client key: {:?}", stream.get_remote_static());
 
+        let stream = TokioIo::new(stream);
+
         tokio::task::spawn(async move {
-            if let Err(http_err) = Http::new()
-                .http1_only(true)
-                .http1_keep_alive(true)
+            if let Err(http_err) = hyper::server::conn::http1::Builder::new()
+                .keep_alive(true)
                 .serve_connection(stream, service_fn(hello))
                 .await
             {
@@ -106,7 +112,10 @@ async fn client_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> 
 
         println!("Server key: {:?}", stream.get_remote_static());
 
-        let (mut request_sender, connection) = hyper::client::conn::handshake(stream).await?;
+        let stream = TokioIo::new(stream);
+
+        let (mut request_sender, connection) =
+            hyper::client::conn::http1::handshake(stream).await?;
 
         tokio::spawn(async move {
             if let Err(e) = connection.await {
@@ -114,16 +123,20 @@ async fn client_task(key: [u8; 32]) -> Result<(), Box<dyn Error + Send + Sync>> 
             }
         });
 
-        let request = Request::builder().method("GET").body(Body::from(""))?;
+        let request = Request::builder()
+            .method("GET")
+            .body(Empty::<Bytes>::new())?;
         let response = request_sender.send_request(request).await?;
         assert!(response.status() == StatusCode::OK);
-        println!("{:?}", hyper::body::to_bytes(response.into_body()).await?);
+        println!("{:?}", response.collect().await?.to_bytes());
 
         request_sender.ready().await?;
-        let request = Request::builder().method("GET").body(Body::from(""))?;
+        let request = Request::builder()
+            .method("GET")
+            .body(Empty::<Bytes>::new())?;
         let response = request_sender.send_request(request).await?;
         assert!(response.status() == StatusCode::OK);
-        println!("{:?}", hyper::body::to_bytes(response.into_body()).await?);
+        println!("{:?}", response.collect().await?.to_bytes());
 
         sleep(Duration::from_secs(5)).await;
     }
