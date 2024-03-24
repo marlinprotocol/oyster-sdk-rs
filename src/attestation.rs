@@ -15,7 +15,7 @@ use serde_cbor::{self, value, value::Value};
 pub struct AttestationDecoded {
     pub pcrs: Vec<String>,
     pub timestamp: usize,
-    pub ed25519_public: [u8; 32],
+    pub public_key: Vec<u8>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -197,7 +197,7 @@ fn parse_timestamp(
 
 fn parse_enclave_key(
     attestation_doc: &mut BTreeMap<Value, Value>,
-) -> Result<[u8; 32], AttestationError> {
+) -> Result<Vec<u8>, AttestationError> {
     let public_key = attestation_doc
         .remove(&"public_key".to_owned().into())
         .ok_or(AttestationError::ParseFailed(
@@ -210,19 +210,14 @@ fn parse_enclave_key(
         )),
     })?;
 
-    let ed25519_public = public_key
-        .as_slice()
-        .try_into()
-        .map_err(|e| AttestationError::ParseFailed(format!("pubkey: {e}")))?;
-
-    Ok(ed25519_public)
+    Ok(public_key)
 }
 
 pub fn verify(
     attestation_doc_cbor: Vec<u8>,
     pcrs: Vec<String>,
     max_age: usize,
-) -> Result<[u8; 32], AttestationError> {
+) -> Result<Vec<u8>, AttestationError> {
     // verify attestation and decode fields
     let decoded_data = verify_and_decode_attestation(attestation_doc_cbor)?;
 
@@ -238,14 +233,14 @@ pub fn verify(
         return Err(AttestationError::VerifyFailed("too old".into()));
     }
 
-    Ok(decoded_data.ed25519_public)
+    Ok(decoded_data.public_key)
 }
 
 pub fn verify_with_timestamp(
     attestation_doc_cbor: Vec<u8>,
     pcrs: Vec<String>,
     timestamp: usize,
-) -> Result<[u8; 32], AttestationError> {
+) -> Result<Vec<u8>, AttestationError> {
     // verify attestation and decode fields
     let decoded_data = verify_and_decode_attestation(attestation_doc_cbor)?;
 
@@ -262,7 +257,7 @@ pub fn verify_with_timestamp(
         ));
     }
 
-    Ok(decoded_data.ed25519_public)
+    Ok(decoded_data.public_key)
 }
 
 pub async fn get_attestation_doc(endpoint: Uri) -> Result<Vec<u8>, AttestationError> {
@@ -279,7 +274,7 @@ pub fn decode_attestation(
     let mut result = AttestationDecoded {
         pcrs: Vec::new(),
         timestamp: 0,
-        ed25519_public: [0; 32],
+        public_key: Vec::new(),
     };
 
     // parse attestation doc
@@ -292,7 +287,7 @@ pub fn decode_attestation(
     result.timestamp = parse_timestamp(&mut attestation_doc)?;
 
     // parse the enclave key
-    result.ed25519_public = parse_enclave_key(&mut attestation_doc)?;
+    result.public_key = parse_enclave_key(&mut attestation_doc)?;
 
     Ok(result)
 }
@@ -303,7 +298,7 @@ pub fn verify_and_decode_attestation(
     let mut result = AttestationDecoded {
         pcrs: Vec::new(),
         timestamp: 0,
-        ed25519_public: [0u8; 32],
+        public_key: Vec::new(),
     };
 
     // parse attestation doc
@@ -319,7 +314,7 @@ pub fn verify_and_decode_attestation(
     result.timestamp = parse_timestamp(&mut attestation_doc)?;
 
     // return the enclave key
-    result.ed25519_public = parse_enclave_key(&mut attestation_doc)?;
+    result.public_key = parse_enclave_key(&mut attestation_doc)?;
 
     Ok(result)
 }
