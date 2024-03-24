@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use aws_nitro_enclaves_cose::{crypto::Openssl, CoseSign1};
 use chrono::Utc;
 use http_body_util::{BodyExt, Full};
@@ -8,7 +10,6 @@ use hyper_util::rt::TokioExecutor;
 use openssl::asn1::Asn1Time;
 use openssl::x509::{X509VerifyResult, X509};
 use serde_cbor::{self, value, value::Value};
-use std::collections::BTreeMap;
 
 #[derive(Debug)]
 pub struct AttestationDecoded {

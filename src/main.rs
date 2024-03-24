@@ -27,14 +27,6 @@ struct Cli {
     #[arg(short, long)]
     pcr2: String,
 
-    /// minimum cpus
-    #[arg(short, long)]
-    min_cpus: usize,
-
-    /// minimum memory
-    #[arg(short, long)]
-    min_mem: usize,
-
     /// maximum age of attestation (in milliseconds)
     #[arg(short, long)]
     max_age: usize,
@@ -47,13 +39,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let pcrs = vec![cli.pcr0, cli.pcr1, cli.pcr2];
     let attestation_doc = get_attestation_doc(cli.endpoint.parse()?).await?;
 
-    let pub_key = verify(
-        attestation_doc,
-        pcrs,
-        cli.min_cpus,
-        cli.min_mem,
-        cli.max_age,
-    )?;
+    let pub_key = verify(attestation_doc, pcrs, cli.max_age)?;
     println!("verification successful with pubkey: {:?}", pub_key);
 
     let mut file = File::create(cli.public)?;
