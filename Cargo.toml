@@ -13,7 +13,7 @@ hex = "0.4.3"
 hyper = { version = "0.14.23", features = ["client", "http1", "http2", "tcp"] }
 libsodium-sys-stable = { version = "1.19.27" }
 openssl = { version = "0.10", features = ["vendored"] }
-serde = "1.0.152"
+serde = "=1.0.152"
 serde_cbor = "0.11.2"
 serde_json = "1.0"
 snow = "0.9.4"
