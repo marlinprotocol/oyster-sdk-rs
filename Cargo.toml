@@ -43,6 +43,10 @@ path = "examples/scallop.rs"
 name = "hyper"
 path = "examples/hyper.rs"
 
+[[example]]
+name = "axum"
+path = "examples/axum.rs"
+
 [profile.release]
 strip = true
 lto = true
