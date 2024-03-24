@@ -1,6 +1,6 @@
 [package]
 name = "oyster-sdk"
-version = "0.7.1"
+version = "0.8.0"
 edition = "2021"
 description = "Oyster SDK"
 license = "MIT"
@@ -51,4 +51,3 @@ path = "examples/axum.rs"
 strip = true
 lto = true
 panic = "abort"
-
