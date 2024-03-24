@@ -12,19 +12,19 @@ struct Cli {
     endpoint: String,
 
     /// path to public key file
-    #[arg(short, long)]
+    #[arg(long)]
     public: String,
 
     /// expected pcr0
-    #[arg(short, long)]
+    #[arg(long)]
     pcr0: String,
 
     /// expected pcr1
-    #[arg(short, long)]
+    #[arg(long)]
     pcr1: String,
 
     /// expected pcr2
-    #[arg(short, long)]
+    #[arg(long)]
     pcr2: String,
 
     /// maximum age of attestation (in milliseconds)
