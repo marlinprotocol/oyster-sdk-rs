@@ -1,6 +1,10 @@
 use aws_nitro_enclaves_cose::{crypto::Openssl, CoseSign1};
 use chrono::Utc;
-use hyper::{client::Client, Uri};
+use http_body_util::{BodyExt, Full};
+use hyper::body::Bytes;
+use hyper::Uri;
+use hyper_util::client::legacy::{Client, Error};
+use hyper_util::rt::TokioExecutor;
 use openssl::asn1::Asn1Time;
 use openssl::x509::{X509VerifyResult, X509};
 use serde::Deserialize;
@@ -22,8 +26,10 @@ pub enum AttestationError {
     ParseFailed(String),
     #[error("failed to verify attestation: {0}")]
     VerifyFailed(String),
-    #[error("http error")]
-    HttpError(#[from] hyper::Error),
+    #[error("http client error")]
+    HttpClientError(#[from] Error),
+    #[error("http body error")]
+    HttpBodyError(#[from] hyper::Error),
 }
 
 #[derive(Deserialize)]
@@ -306,9 +312,11 @@ pub fn verify_with_timestamp(
 }
 
 pub async fn get_attestation_doc(endpoint: Uri) -> Result<Vec<u8>, AttestationError> {
-    let client = Client::new();
+    let client = Client::builder(TokioExecutor::new()).build_http::<Full<Bytes>>();
     let res = client.get(endpoint).await?;
-    Ok(hyper::body::to_bytes(res).await?.to_vec())
+    let body = res.collect().await?.to_bytes();
+
+    Ok(body.to_vec())
 }
 
 pub fn decode_attestation(
