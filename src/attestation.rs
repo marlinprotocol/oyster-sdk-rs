@@ -7,15 +7,12 @@ use hyper_util::client::legacy::{Client, Error};
 use hyper_util::rt::TokioExecutor;
 use openssl::asn1::Asn1Time;
 use openssl::x509::{X509VerifyResult, X509};
-use serde::Deserialize;
 use serde_cbor::{self, value, value::Value};
 use std::collections::BTreeMap;
 
 #[derive(Debug)]
 pub struct AttestationDecoded {
     pub pcrs: Vec<String>,
-    pub total_memory: usize,
-    pub total_cpus: usize,
     pub timestamp: usize,
     pub ed25519_public: [u8; 32],
 }
@@ -30,12 +27,6 @@ pub enum AttestationError {
     HttpClientError(#[from] Error),
     #[error("http body error")]
     HttpBodyError(#[from] hyper::Error),
-}
-
-#[derive(Deserialize)]
-struct EnclaveConfig {
-    total_memory: usize,
-    total_cpus: usize,
 }
 
 fn get_all_certs(cert: X509, cabundle: Vec<Value>) -> Result<Vec<X509>, AttestationError> {
@@ -182,26 +173,6 @@ fn verify_signature_and_cert_chain(
     Ok(())
 }
 
-fn parse_cpu_mem(
-    attestation_doc: &mut BTreeMap<Value, Value>,
-) -> Result<EnclaveConfig, AttestationError> {
-    let user_data = attestation_doc
-        .remove(&"user_data".to_owned().into())
-        .ok_or(AttestationError::ParseFailed(
-            "user data not found in attestation doc".to_owned(),
-        ))?;
-    let user_data = (match user_data {
-        Value::Bytes(b) => Ok(b),
-        _ => Err(AttestationError::ParseFailed(
-            "user data decode failure".into(),
-        )),
-    })?;
-    let size = serde_json::from_slice::<EnclaveConfig>(user_data.as_slice())
-        .map_err(|e| AttestationError::ParseFailed(format!("enclave config: {e}")))?;
-
-    Ok(size)
-}
-
 fn parse_timestamp(
     attestation_doc: &mut BTreeMap<Value, Value>,
 ) -> Result<usize, AttestationError> {
@@ -249,8 +220,6 @@ fn parse_enclave_key(
 pub fn verify(
     attestation_doc_cbor: Vec<u8>,
     pcrs: Vec<String>,
-    min_cpus: usize,
-    min_mem: usize,
     max_age: usize,
 ) -> Result<[u8; 32], AttestationError> {
     // verify attestation and decode fields
@@ -260,13 +229,6 @@ pub fn verify(
         if decoded_data.pcrs[i] != pcrs[i] {
             return Err(AttestationError::VerifyFailed(format!("pcr{i}")));
         }
-    }
-
-    if decoded_data.total_cpus < min_cpus {
-        return Err(AttestationError::VerifyFailed("minimum cpus".into()));
-    }
-    if decoded_data.total_memory < min_mem {
-        return Err(AttestationError::VerifyFailed("minimum memory".into()));
     }
 
     // verify age
@@ -281,8 +243,6 @@ pub fn verify(
 pub fn verify_with_timestamp(
     attestation_doc_cbor: Vec<u8>,
     pcrs: Vec<String>,
-    min_cpus: usize,
-    min_mem: usize,
     timestamp: usize,
 ) -> Result<[u8; 32], AttestationError> {
     // verify attestation and decode fields
@@ -292,13 +252,6 @@ pub fn verify_with_timestamp(
         if decoded_data.pcrs[i] != pcrs[i] {
             return Err(AttestationError::VerifyFailed(format!("pcr{i}")));
         }
-    }
-
-    if decoded_data.total_cpus < min_cpus {
-        return Err(AttestationError::VerifyFailed("minimum cpus".into()));
-    }
-    if decoded_data.total_memory < min_mem {
-        return Err(AttestationError::VerifyFailed("minimum memory".into()));
     }
 
     // verify timestamp
@@ -324,8 +277,6 @@ pub fn decode_attestation(
 ) -> Result<AttestationDecoded, AttestationError> {
     let mut result = AttestationDecoded {
         pcrs: Vec::new(),
-        total_cpus: 0,
-        total_memory: 0,
         timestamp: 0,
         ed25519_public: [0; 32],
     };
@@ -335,11 +286,6 @@ pub fn decode_attestation(
 
     // parse pcrs
     result.pcrs = parse_pcrs(&mut attestation_doc)?;
-
-    // parse cpu and memory
-    let size = parse_cpu_mem(&mut attestation_doc)?;
-    result.total_cpus = size.total_cpus;
-    result.total_memory = size.total_memory;
 
     // parse timestamp
     result.timestamp = parse_timestamp(&mut attestation_doc)?;
@@ -355,8 +301,6 @@ pub fn verify_and_decode_attestation(
 ) -> Result<AttestationDecoded, AttestationError> {
     let mut result = AttestationDecoded {
         pcrs: Vec::new(),
-        total_cpus: 0,
-        total_memory: 0,
         timestamp: 0,
         ed25519_public: [0u8; 32],
     };
@@ -369,11 +313,6 @@ pub fn verify_and_decode_attestation(
 
     // verify signature and cert chain
     verify_signature_and_cert_chain(&mut attestation_doc, &cosesign1)?;
-
-    // parse cpu and memory
-    let size = parse_cpu_mem(&mut attestation_doc)?;
-    result.total_cpus = size.total_cpus;
-    result.total_memory = size.total_memory;
 
     // parse timestamp
     result.timestamp = parse_timestamp(&mut attestation_doc)?;
