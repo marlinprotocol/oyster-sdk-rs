@@ -13,7 +13,7 @@ use serde_cbor::{self, value, value::Value};
 
 #[derive(Debug)]
 pub struct AttestationDecoded {
-    pub pcrs: Vec<String>,
+    pub pcrs: [[u8; 48]; 3],
     pub timestamp: usize,
     pub public_key: Vec<u8>,
 }
@@ -101,17 +101,17 @@ fn parse_attestation_doc(
 
 fn parse_pcrs(
     attestation_doc: &mut BTreeMap<Value, Value>,
-) -> Result<Vec<String>, AttestationError> {
+) -> Result<[[u8; 48]; 3], AttestationError> {
     let pcrs_arr = attestation_doc
         .remove(&"pcrs".to_owned().into())
         .ok_or(AttestationError::ParseFailed("pcrs not found".into()))?;
     let mut pcrs_arr = value::from_value::<BTreeMap<Value, Value>>(pcrs_arr)
         .map_err(|e| AttestationError::ParseFailed(format!("pcrs: {e}")))?;
 
-    let mut result = vec![];
-    for i in 0u8..3u8 {
+    let mut result = [[0; 48]; 3];
+    for i in 0..3 {
         let pcr = pcrs_arr
-            .remove(&i.into())
+            .remove(&(i as u32).into())
             .ok_or(AttestationError::ParseFailed(format!("pcr{i} not found")))?;
         let pcr = (match pcr {
             Value::Bytes(b) => Ok(b),
@@ -119,7 +119,10 @@ fn parse_pcrs(
                 "pcr{i} decode failure"
             ))),
         })?;
-        result.push(hex::encode(pcr));
+        result[i] = pcr
+            .as_slice()
+            .try_into()
+            .map_err(|e| AttestationError::ParseFailed(format!("pcr{i} not 48 bytes: {e}")))?;
     }
 
     Ok(result)
@@ -215,7 +218,7 @@ fn parse_enclave_key(
 
 pub fn verify(
     attestation_doc_cbor: Vec<u8>,
-    pcrs: Vec<String>,
+    pcrs: [[u8; 48]; 3],
     max_age: usize,
 ) -> Result<Vec<u8>, AttestationError> {
     // verify attestation and decode fields
@@ -238,7 +241,7 @@ pub fn verify(
 
 pub fn verify_with_timestamp(
     attestation_doc_cbor: Vec<u8>,
-    pcrs: Vec<String>,
+    pcrs: [[u8; 48]; 3],
     timestamp: usize,
 ) -> Result<Vec<u8>, AttestationError> {
     // verify attestation and decode fields
@@ -272,7 +275,7 @@ pub fn decode_attestation(
     attestation_doc: Vec<u8>,
 ) -> Result<AttestationDecoded, AttestationError> {
     let mut result = AttestationDecoded {
-        pcrs: Vec::new(),
+        pcrs: [[0; 48]; 3],
         timestamp: 0,
         public_key: Vec::new(),
     };
@@ -296,7 +299,7 @@ pub fn verify_and_decode_attestation(
     attestation_doc: Vec<u8>,
 ) -> Result<AttestationDecoded, AttestationError> {
     let mut result = AttestationDecoded {
-        pcrs: Vec::new(),
+        pcrs: [[0; 48]; 3],
         timestamp: 0,
         public_key: Vec::new(),
     };
