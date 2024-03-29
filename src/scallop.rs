@@ -458,6 +458,10 @@ pub async fn new_client_async_Noise_IX_25519_ChaChaPoly_BLAKE2b<
     // payload
 
     if should_ask_auth {
+        // new heap allocated buffers
+        let mut buf = vec![0u8; 65000].into_boxed_slice();
+        let mut noise_buf = vec![0u8; 65000].into_boxed_slice();
+
         // read and handle handshake message
         let len = noise_read(&mut noise, &mut stream, &mut buf, &mut noise_buf).await?;
 
